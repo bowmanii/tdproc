@@ -107,7 +107,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 
 # using Kennels rsk package, read 18 transducers from our fn variable
 pr <- rsk::read_rsk(fn[1],
-                    return_data_table = FALSE,
+                    return_data_table = TRUE,
                     include_params = c('file_name'),
                     keep_raw = TRUE,
                     raw = TRUE)
