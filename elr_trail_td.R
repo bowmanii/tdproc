@@ -31,9 +31,12 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 #####################################################################
 # Q for Kennel:
-## line ~103-105
 ## " vs '
 ## how is c() being used
+## for the diver baro, use .dat or .csv file?
+## why do I get "rbr_channels = <Promise>" after running line 93
+## line ~103-105
+## what does on= do for dt manipulation? direct sub "on" the same values?
 
 #####################################################################
 #### For future use after trial run w Jennie ####
@@ -98,24 +101,34 @@ pr <- rsk::read_rsk(fn[1],
 #why are we seeing if variable is in pressure? isnt it backwards?
 # is it selecting rows within the variable col??
 ###################################################################
-# redefine pr to look in the variable column for pressure
-# 4 cols
+# redefine pr to look in the variable column for pressure (4 columns)
+# look in the variable column for this exact string(match)
 pr <- pr[variable %in% c("pressure")]
 ###################################################################
 # no idea what this does
 # does it match the rbr pr data to our file names, then we reference that below to merge?
 ###################################################################
+# ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
+# for all subs type "data/ "? followed by file_name, use exact matching
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
 # merges both data tables together into pr (13 cols)
+# rows = pr data.table, matches data by file name?
+# bring in the loc DT to pr, match data with file_name
 pr <- loc[pr, on = "file_name"]
-# assign ba to when port is equal to baro_rbr
+##################################################################
+
+# create baro dt from pr subset using condition when port is equal to baro_rbr
 baro <- pr[port == "baro_rbr"]
-# assign wl to all other ports (exluding baro or liner values)
+# create wl dt from pr subset using condition that excludes all ports equal to baros or liners
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
 # brings in the baro value to line up with port data
 # no rows will be returned if no match
+# using the baro dt, exclude looking at rows, look at cols:
+# using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
 
+# sorts wl data table by date time
+####### descending order??
 setkey(wl, datetime)
