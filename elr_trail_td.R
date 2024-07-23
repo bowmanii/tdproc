@@ -30,21 +30,17 @@ library(hydrorecipes)
 dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of H20
 
 #####################################################################
-#well1 <- "ELR1-R1"
-#well2 <- "ELR1-R2"
-
 # Q for Kennel:
-## bad practice to use a variable that has char attached to it in another variables name?
-## aka air calib? need? (time btwn programmed and installed, aka air calib?)
-## how do you organize your files? project folder? etc? (for excel files for data (meta data?) vs data files, etc)
-## changed .xlsx to have zeros in front of S/N, port#, did not import that way in R?
-## diff btwn "../.." vs "./filename" vs "~/" (could not find answer on google)
-## how do you only analyze data from the one TD set we are interested in? (see line 83,84)
-## file_dir not working?? (line87)
-## can you have the pattern return 2 file types? (c() did not work)
+## line ~103-105
+## " vs '
+## how is c() being used
 
 #####################################################################
 #### For future use after trial run w Jennie ####
+
+#well1 <- "ELR1-R1"
+#well2 <- "ELR1-R2"
+
 # air calibration
 #air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 #air_end_well1 <- as.POSIXct("2024-04-02 16:01:00", tz = "UTC")
@@ -58,18 +54,18 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC")
 
 # sealed hole
-#seal_start_well1 <- as.POSIXct("2024-04-05 18:33", tz = "UTC")
-#seal_end_well1 <- as.POSIXct("2024-06-25 19:28", tz = "UTC")
-#seal_start_well2 <- as.POSIXct("2024-04-05 15:43", tz = "UTC")
-#seal_end_well2 <- as.POSIXct("2024-06-24 14:35", tz = "UTC")
+#seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
+#seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
+#seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
+#seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
 #####################################################################
 
 # start and end times of sealed conditions, ELR1-R1
-s <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
-e <- as.POSIXct("2024-06-25 19:28:00:", tz = "UTC")
+seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
+seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00:", tz = "UTC")
 
 # set where data files are located
-file_dir <- "../..data"
+file_dir <- "data/"
 
 # assign loc variable to excel file that has port depths, file names, s/n's, etc
 # ensure NA in file is read as na in R
@@ -85,32 +81,41 @@ loc <- loc[grep("rsk", file_name)]
 ## want to include diver file (.csv or .dat?)
 ###############################################################################
 
-#fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
-#fn <- list.files("./data", full.names = TRUE, pattern = c("*.rsk", "*.csv"))
-##############################################################################
-
 # list all file names from "data" folder, return full file path, only .rsk files
-fn <- list.files("./data", full.names = TRUE, pattern = "*.rsk")
+fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
 # cross reference the data files to the data table file_name column
 fn <- fn[basename(fn) %in% loc$file_name]
 
-###############################################################################
-# using Kennels transducer package, read 18 transducers from our fn variable
-##??  not sure here what fn[1] is doing?
-### this is breaking R for me. aborting is this for jennie??
-#transducer::read_transducer(fn[1])
-###############################################################################
-
-###########################
-## tried to read in 18 files, wont do it, super long and never finishes
-###########################
-
-# using Kennels rsk package, read 18 transducers from our fn variable
+# using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
+# returns the stored data as a data.table, includes the file name
 pr <- rsk::read_rsk(fn[1],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     keep_raw = TRUE,
                     raw = TRUE)
+###################################################################
+#dont understand this line of code really, what does c() do here?
+#why are we seeing if variable is in pressure? isnt it backwards?
+# is it selecting rows within the variable col??
+###################################################################
+# redefine pr to look in the variable column for pressure
+# 4 cols
 pr <- pr[variable %in% c("pressure")]
-## something not right with this code...
-###test1
+###################################################################
+# no idea what this does
+# does it match the rbr pr data to our file names, then we reference that below to merge?
+###################################################################
+pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
+
+# merges both data tables together into pr (13 cols)
+pr <- loc[pr, on = "file_name"]
+# assign ba to when port is equal to baro_rbr
+baro <- pr[port == "baro_rbr"]
+# assign wl to all other ports (exluding baro or liner values)
+wl <- pr[!port %in% c("baro_rbr", "liner")]
+#wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
+# brings in the baro value to line up with port data
+# no rows will be returned if no match
+wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
+
+setkey(wl, datetime)
