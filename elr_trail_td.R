@@ -37,6 +37,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 ## why do I get "rbr_channels = <Promise>" after running line 93
 ## line ~103-105
 ## what does on= do for dt manipulation? direct sub "on" the same values?
+## follow up, by=??
 
 #####################################################################
 #### For future use after trial run w Jennie ####
@@ -61,6 +62,14 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
+
+# t-profile
+# for well1: estimated times, no notes taken?
+#tprof_start_well1 <- as.POSIXct("2024-06-26 14:41:00", tz = "UTC")
+#tprof_end_well1 <- as.POSIXct("2024-06-26 14:44:00", tz = "UTC")
+#tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
+#tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
+
 #####################################################################
 
 # start and end times of sealed conditions, ELR1-R1
@@ -91,7 +100,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 
 # using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
-pr <- rsk::read_rsk(fn[1],
+pr <- rsk::read_rsk(fn[c(1,3)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     keep_raw = TRUE,
@@ -109,7 +118,7 @@ pr <- pr[variable %in% c("pressure")]
 # does it match the rbr pr data to our file names, then we reference that below to merge?
 ###################################################################
 # ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
-# for all subs type "data/ "? followed by file_name, use exact matching
+# for all subs type "data/ "? followed by file_name, use exact matching (use existing column)
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
 # merges both data tables together into pr (13 cols)
@@ -129,6 +138,33 @@ wl <- pr[!port %in% c("baro_rbr", "liner")]
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
 
+# calculate head from pressures, baro pressures, port depth (make new col called "head")
+wl[, head := (value - baro) * dbar_to_m - monitoring_location]
+
 # sorts wl data table by date time
 ####### descending order??
 setkey(wl, datetime)
+
+# subset the wl dt by desired times
+wl_sub <- wl[datetime %between% c(seal_start_well1,seal_end_well1)]
+# make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
+wl_sub[, value_adj := value - value[1], by = port]
+
+# show subset in a plot
+# set 300 entries to 0, means looking at every 5 min data
+p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~value_adj,
+              color = ~port,
+              colors = viridis(20),
+              type = "scatter", mode = "lines")
+
+
+
+
+
+
+
+
+
+
