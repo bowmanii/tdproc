@@ -138,7 +138,7 @@ wl <- pr[!port %in% c("baro_rbr", "liner")]
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
 
-# calculate head from pressures, baro pressures, port depth (make new col called "head")
+# calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head := (value - baro) * dbar_to_m - monitoring_location]
 
 # sorts wl data table by date time
@@ -158,6 +158,19 @@ p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               color = ~port,
               colors = viridis(20),
               type = "scatter", mode = "lines")
+
+# call the plot
+p1
+
+# plot baro
+p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~baro,
+              type = "scatter", mode = "lines")
+
+# display numerous plots in single view
+subplot(p1, p2, shareX = TRUE, nrows = 2)
+
 
 
 
