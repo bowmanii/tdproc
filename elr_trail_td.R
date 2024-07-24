@@ -157,19 +157,46 @@ p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               y = ~value_adj,
               color = ~port,
               colors = viridis(20),
-              type = "scatter", mode = "lines")
-
+              name = ~port,
+              type = "scatter", mode = "lines")%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "value_adj"))
+  
 # call the plot
-p1
+#p1
 
 # plot baro
 p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro,
-              type = "scatter", mode = "lines")
+              name = "Baro",
+              type = "scatter", mode = "lines")%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "baro pressure"))
 
 # display numerous plots in single view
 subplot(p1, p2, shareX = TRUE, nrows = 2)
+
+# shorten the number of cols in wl_sub to only these 4
+wl_sub <- wl_sub[,list(datetime, value, baro, port)]
+
+# new dt using wl_sub with three cols
+wl_wide <- data.table::dcast(wl_sub, datetime+baro~port)
+# using wl_wide dt, replace 1,2,etc with "port_01", etc
+setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
