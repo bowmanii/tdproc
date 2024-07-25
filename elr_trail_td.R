@@ -100,7 +100,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 
 # using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
-pr <- rsk::read_rsk(fn[c(1,3)],
+pr <- rsk::read_rsk(fn[c(1,3:16)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     keep_raw = TRUE,
@@ -154,12 +154,12 @@ wl_sub[, value_adj := value - value[1], by = port]
 # set 300 entries to 0, means looking at every 5 min data
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_adj,
+              y = ~value, #or head, or value, etc
               color = ~port,
               colors = viridis(20),
               name = ~port,
               type = "scatter", mode = "lines")%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "value_adj"))
-  
+
 # call the plot
 #p1
 
@@ -181,10 +181,65 @@ wl_wide <- data.table::dcast(wl_sub, datetime+baro~port)
 # using wl_wide dt, replace 1,2,etc with "port_01", etc
 setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
 
+#### Barometric Deconvolution Example ####
 
+# creating a formula? or are we extracting formula from these things
+# add port 1 and 2, as a function of baro and datetime
+frm <- formula(port_01 + port_02~baro + datetime)
+# ?? ~.??
+frm2 <- formula(port_01 + port_02~.)
+# recipe, takes formula, data from wl_wide
+rec <- hydrorecipes::recipe(frm, data = wl_wide) |>
+  # log_logs_arma(n, max_lag)
+  step_distributed_lag(baro, knots = log_lags_arma(15, 86400)) |> #dont know what this does
+  # step_harmonic(datetime, frequency = c(1,2), cycle_size = 86400) |>
+  # df = degrees of freedom
+  step_spline_b(datetime, df = 70) |>
+  step_intercept() |>
+  step_drop_columns(datetime) |>
+  step_drop_columns(baro) |>
+  step_ols(frm2) |>
+  prep() |>
+  bake()
 
+# combine wl_wide with above recipe results? I think?
+tmp <- cbind(wl_wide, rec$get_predict_data(type = "dt"))
 
+# design plots
+p3 <- plot_ly(tmp[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~port_01_step_distributed_lag_baro,
+              name = "port_01_step_dist_lag_baro",
+              type = "scatter", mode = "lines")
+p4 <- plot_ly(tmp[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~baro,
+              name = "baro",
+              type = "scatter", mode = "lines")
+p5 <- plot_ly(tmp[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~port_01_step_spline_b_datetime,
+              name = "port_01_step_spline_b",
+              type = "scatter", mode = "lines")
+p6 <- plot_ly(tmp[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~port_01,
+              name = "port_01",
+              type = "scatter", mode = "lines")
+# display all plots together
+subplot(p3, p4, p5, p6, shareX = TRUE, nrows = 4)
 
+# ?
+frm3 <- formula(port_01~baro)
+rec <- hydrorecipes::recipe(frm3, data = wl_wide) |>
+  step_fft_transfer_experimental(c(port_01, baro), n_groups = 100) |>
+  prep() |>
+  bake()
+# ?
+a <- collapse::qDT(rec$get_step_data("fft_result")[[1]])
+
+# plot it in a log plot
+plot(Mod(fft_transfer_experimental)~frequency, a[1:10000], type = "l", log = "x", ylim = c(0,1))
 
 
 
