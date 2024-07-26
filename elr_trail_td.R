@@ -31,7 +31,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 #####################################################################
 # Q for Kennel:
-## " vs '
+## " vs ' = usually interchangeable
 ## how is c() being used
 ## for the diver baro, use .dat or .csv file?
 ## why do I get "rbr_channels = <Promise>" after running line 93
@@ -100,7 +100,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 
 # using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
-pr <- rsk::read_rsk(fn[c(1,3:16)],
+pr <- rsk::read_rsk(fn[c(1,3:4)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     keep_raw = TRUE,
@@ -154,7 +154,7 @@ wl_sub[, value_adj := value - value[1], by = port]
 # set 300 entries to 0, means looking at every 5 min data
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value, #or head, or value, etc
+              y = ~head, #or head, or value, etc
               color = ~port,
               colors = viridis(20),
               name = ~port,
