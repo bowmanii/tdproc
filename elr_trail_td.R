@@ -16,6 +16,7 @@ library(plotly)
 library(remotes)
 library(readxl)
 library(viridis)
+library(dplyr)
 
 # pull in Kennel's packages if don't already have
 #remotes::install_github("jkennel/rsk")
@@ -103,7 +104,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 pr <- rsk::read_rsk(fn[c(1,3:4)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
-                    keep_raw = TRUE,
+                    keep_raw = FALSE,
                     raw = TRUE)
 ###################################################################
 #dont understand this line of code really, what does c() do here?
@@ -112,13 +113,61 @@ pr <- rsk::read_rsk(fn[c(1,3:4)],
 ###################################################################
 # redefine pr to look in the variable column for pressure (4 columns)
 # look in the variable column for this exact string(match)
-pr <- pr[variable %in% c("pressure")]
+pr <- pr[variable %in% c("pressure", "pressure_compensated")]
+# setkey(pr,datetime)
+# 
+# if ("pressure_compensated" %in% pr$variable) {
+#   pr<-pr[variable != "pressure"]
+#   pr[variable == "pressure_compensated", variable := "pressure"]
+# }
+# 
+# for (i in 1:nrow(pr)){
+#  if( pr[i,4]== pr[i+1,4]) {
+#   sub(pr[i,2], pr[i+1,2])} 
+# }
+# 
+# prnew <- pr[-c(listrm)]
+# # pr <- ifelse(pr[variable == "pressure_compensated"], pr[variable] %in% "pressure_compensated", pr[variable] %in% "pressure")
+# # 
+# # pr <- ifelse(pr[variable %in% "pressure_compensated"], pr, pr[variable] %in% "pressure")
+# # 
+# # pr_yes <- pr[variable %in% c("pressure_compensated")]
+# # pr_no <- pr[variable %in% c("pressure")]
+# # pr <- ifelse(pr[variable == "pressure_compensated"], pr_yes, pr_no)
+# 
+#  pr2 <- apply(pr, 2, rev)
+#  
+#  pr2<- pr[order(pr[,'file_name'],-pr[,'variable']),]
+#  pr2<- pr[!duplicated(pr$file_name)]
+# pr3<-pr[!duplicated(pr[c(1,4)]),]
+
+# pr1 <- pr[variable %in% c("pressure_compensated")]
+# pr2 <- pr[variable %in% c("pressure")]
+# pr3 <- right_join(pr1, pr2, by = c("datetime" = "datetime", "file_name" = "file_name"))
+# 
+# pr3$variable.x <- if (is.na(pr3$variable.x)){
+#   pr3$variable.y
+#   }
+# pr3$value.x <- ifelse(is.na(pr3$value.x),pr3$value.y,pr3$value.x)
+# 
+# 
+# pr1 <- pr2[pr1, on = c("datetime", "file_name")]
+# setkey(pr1, datetime)
+# setkey(pr3, datetime)
+# setkey(pr, datetime)
+# 
+# if (pr[variable == c("pressure_compensated", "pressure") ])
+# 
+# pr4 <- pr[!which(pr$variable !=)]
+
 ###################################################################
 # no idea what this does
 # does it match the rbr pr data to our file names, then we reference that below to merge?
 ###################################################################
 # ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
 # for all subs type "data/ "? followed by file_name, use exact matching (use existing column)
+# basename wasn't working, text replacement, replace w empty string, looking in file_name
+# using it to clean up file name colun!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
 # merges both data tables together into pr (13 cols)
@@ -158,7 +207,7 @@ p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               color = ~port,
               colors = viridis(20),
               name = ~port,
-              type = "scatter", mode = "lines")%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "value_adj"))
+              type = "scatter", mode = "lines")
 
 # call the plot
 #p1
@@ -168,10 +217,10 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro,
               name = "Baro",
-              type = "scatter", mode = "lines")%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "baro pressure"))
+              type = "scatter", mode = "lines")
 
 # display numerous plots in single view
-subplot(p1, p2, shareX = TRUE, nrows = 2)
+subplot(p1, p2, shareX = TRUE, nrows = 2)%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "head"))
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
@@ -185,8 +234,14 @@ setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
 
 # creating a formula? or are we extracting formula from these things
 # add port 1 and 2, as a function of baro and datetime
+# datetime+baro = LHS = rows
+# ~port = RHS = cols
+# y variable = LHS, explanation on RHS
 frm <- formula(port_01 + port_02~baro + datetime)
 # ?? ~.??
+# . = "everything else"
+# 2 response variable = port 1,2 = y
+# everything else as explanatory variables, "regressors", "x's"
 frm2 <- formula(port_01 + port_02~.)
 # recipe, takes formula, data from wl_wide
 rec <- hydrorecipes::recipe(frm, data = wl_wide) |>
