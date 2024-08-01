@@ -2,8 +2,8 @@
 # Site: ELR
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
-# Created: Thursday July 18 2024
-# Last updated: July 20, 2024
+# Created: July 18 2024
+# Last updated: Aug 01, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -32,11 +32,6 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 #####################################################################
 # Q for Kennel:
-## " vs ' = usually interchangeable
-## how is c() being used
-## for the diver baro, use .dat or .csv file?
-## why do I get "rbr_channels = <Promise>" after running line 93
-## line ~103-105
 ## what does on= do for dt manipulation? direct sub "on" the same values?
 ## follow up, by=??
 
@@ -89,10 +84,6 @@ setDT(loc)
 loc <- loc[well == "ELR1-R1"]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
-###############################################################################
-## have rbr_short here, don't want to use it, from previous deployment (row19)
-## want to include diver file (.csv or .dat?)
-###############################################################################
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -101,97 +92,40 @@ fn <- fn[basename(fn) %in% loc$file_name]
 
 # using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
-pr <- rsk::read_rsk(fn[c(1,3:4)],
+# simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
+# if not, use the "pressure" value instead. TRUE = do this command
+# raw, keep_raw is about what data it retains
+pr <- rsk::read_rsk(fn[c(1,3:18)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
+                    simplify_names = TRUE,
                     keep_raw = FALSE,
                     raw = TRUE)
-###################################################################
-#dont understand this line of code really, what does c() do here?
-#why are we seeing if variable is in pressure? isnt it backwards?
-# is it selecting rows within the variable col??
-###################################################################
-# redefine pr to look in the variable column for pressure (4 columns)
-# look in the variable column for this exact string(match)
-pr <- pr[variable %in% c("pressure", "pressure_compensated")]
-# setkey(pr,datetime)
-# 
-# if ("pressure_compensated" %in% pr$variable) {
-#   pr<-pr[variable != "pressure"]
-#   pr[variable == "pressure_compensated", variable := "pressure"]
-# }
-# 
-# for (i in 1:nrow(pr)){
-#  if( pr[i,4]== pr[i+1,4]) {
-#   sub(pr[i,2], pr[i+1,2])} 
-# }
-# 
-# prnew <- pr[-c(listrm)]
-# # pr <- ifelse(pr[variable == "pressure_compensated"], pr[variable] %in% "pressure_compensated", pr[variable] %in% "pressure")
-# # 
-# # pr <- ifelse(pr[variable %in% "pressure_compensated"], pr, pr[variable] %in% "pressure")
-# # 
-# # pr_yes <- pr[variable %in% c("pressure_compensated")]
-# # pr_no <- pr[variable %in% c("pressure")]
-# # pr <- ifelse(pr[variable == "pressure_compensated"], pr_yes, pr_no)
-# 
-#  pr2 <- apply(pr, 2, rev)
-#  
-#  pr2<- pr[order(pr[,'file_name'],-pr[,'variable']),]
-#  pr2<- pr[!duplicated(pr$file_name)]
-# pr3<-pr[!duplicated(pr[c(1,4)]),]
 
-# pr1 <- pr[variable %in% c("pressure_compensated")]
-# pr2 <- pr[variable %in% c("pressure")]
-# pr3 <- right_join(pr1, pr2, by = c("datetime" = "datetime", "file_name" = "file_name"))
-# 
-# pr3$variable.x <- if (is.na(pr3$variable.x)){
-#   pr3$variable.y
-#   }
-# pr3$value.x <- ifelse(is.na(pr3$value.x),pr3$value.y,pr3$value.x)
-# 
-# 
-# pr1 <- pr2[pr1, on = c("datetime", "file_name")]
-# setkey(pr1, datetime)
-# setkey(pr3, datetime)
-# setkey(pr, datetime)
-# 
-# if (pr[variable == c("pressure_compensated", "pressure") ])
-# 
-# pr4 <- pr[!which(pr$variable !=)]
+# subset pr to only include this exact string (match) in the variable column
+# dont need this line now b/c of "simplify_names" above
+#pr <- pr[variable %in% c("pressure")]
 
-###################################################################
-# no idea what this does
-# does it match the rbr pr data to our file names, then we reference that below to merge?
-###################################################################
 # ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
-# for all subs type "data/ "? followed by file_name, use exact matching (use existing column)
 # basename wasn't working, text replacement, replace w empty string, looking in file_name
 # using it to clean up file name colun!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
-# merges both data tables together into pr (13 cols)
-# rows = pr data.table, matches data by file name?
-# bring in the loc DT to pr, match data with file_name
+# bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
-##################################################################
 
 # create baro dt from pr subset using condition when port is equal to baro_rbr
 baro <- pr[port == "baro_rbr"]
 # create wl dt from pr subset using condition that excludes all ports equal to baros or liners
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
-# brings in the baro value to line up with port data
-# no rows will be returned if no match
-# using the baro dt, exclude looking at rows, look at cols:
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
 
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head := (value - baro) * dbar_to_m - monitoring_location]
 
-# sorts wl data table by date time
-####### descending order??
+# sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
@@ -200,17 +134,14 @@ wl_sub <- wl[datetime %between% c(seal_start_well1,seal_end_well1)]
 wl_sub[, value_adj := value - value[1], by = port]
 
 # show subset in a plot
-# set 300 entries to 0, means looking at every 5 min data
+# set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head, #or head, or value, etc
+              y = ~head, #or head, or value, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~port,
               type = "scatter", mode = "lines")
-
-# call the plot
-#p1
 
 # plot baro
 p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
@@ -219,7 +150,7 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               name = "Baro",
               type = "scatter", mode = "lines")
 
-# display numerous plots in single view
+# display numerous plots in single view, customize plot features (axis titles, etc) using layout
 subplot(p1, p2, shareX = TRUE, nrows = 2)%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "head"))
 
 # shorten the number of cols in wl_sub to only these 4
@@ -232,7 +163,7 @@ setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
 
 #### Barometric Deconvolution Example ####
 
-# creating a formula? or are we extracting formula from these things
+# creating a formula
 # add port 1 and 2, as a function of baro and datetime
 # datetime+baro = LHS = rows
 # ~port = RHS = cols
