@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Aug 01, 2024
+# Last updated: Aug 02, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -103,12 +103,11 @@ pr <- rsk::read_rsk(fn[c(1,3:18)],
                     raw = TRUE)
 
 # subset pr to only include this exact string (match) in the variable column
-# dont need this line now b/c of "simplify_names" above
-#pr <- pr[variable %in% c("pressure")]
+pr <- pr[variable %in% c("pressure")]
 
 # ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
 # basename wasn't working, text replacement, replace w empty string, looking in file_name
-# using it to clean up file name colun!
+# using it to clean up file name column!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
@@ -151,7 +150,20 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               type = "scatter", mode = "lines")
 
 # display numerous plots in single view, customize plot features (axis titles, etc) using layout
-subplot(p1, p2, shareX = TRUE, nrows = 2)%>%layout(title = "ELR1-R1", xaxis = list(title = "Date and time"), yaxis = list(title = "head"))
+# to make axis values reverse: yaxis=list(autorange="reversed")
+# custom axis range: range=list(1.5,4.5)
+# minor=list(nticks=50)
+# minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
+subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
+  layout(
+    title = "ELR1-R1", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head - DTW (m H20)"), 
+    yaxis2 = list(title = "Pressure (dbar)"),
+    legend = list(traceorder = "reversed")
+  )
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
@@ -226,26 +238,3 @@ a <- collapse::qDT(rec$get_step_data("fft_result")[[1]])
 
 # plot it in a log plot
 plot(Mod(fft_transfer_experimental)~frequency, a[1:10000], type = "l", log = "x", ylim = c(0,1))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
