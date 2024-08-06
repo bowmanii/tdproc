@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Aug 02, 2024
+# Last updated: Aug 06, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -41,6 +41,10 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #well1 <- "ELR1-R1"
 #well2 <- "ELR1-R2"
 
+# well elevation (m amsl)
+elev1 <- 377.540 + 0.580
+elev2 <- 379.612 + 0.530
+
 # air calibration
 #air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 #air_end_well1 <- as.POSIXct("2024-04-02 16:01:00", tz = "UTC")
@@ -54,8 +58,8 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC")
 
 # sealed hole
-#seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
-#seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
+seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
+seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
 
@@ -63,14 +67,14 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 # for well1: estimated times, no notes taken?
 #tprof_start_well1 <- as.POSIXct("2024-06-26 14:41:00", tz = "UTC")
 #tprof_end_well1 <- as.POSIXct("2024-06-26 14:44:00", tz = "UTC")
-#tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
-#tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
+tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
+tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
 
 #####################################################################
 
-# start and end times of sealed conditions, ELR1-R1
-seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
-seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00:", tz = "UTC")
+# adjust for +34 min/-20 min before/after
+# tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
+# tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
 
 # set where data files are located
 file_dir <- "data/"
@@ -121,31 +125,73 @@ wl <- pr[!port %in% c("baro_rbr", "liner")]
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
 
+# add port name to monitoring location
+################# can this get speed up? better way? ############################################################
+wl[, portloc := paste(port, monitoring_location, sep = " - ")]
+wl[, portloc := paste(portloc, "mbTOC")]
+
+# calculate elevation of transducer monitoring point
+wl[, sensor_elev := elev1 - monitoring_location]
+
+# convert all pressures to m H20
+wl[, baro_m := baro * dbar_to_m]
+wl[, value_m := value * dbar_to_m]
+
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
-wl[, head := (value - baro) * dbar_to_m - monitoring_location]
+wl[, head_mamsl := sensor_elev + (value_m - baro_m)]
 
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well1,seal_end_well1)]
+wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+#wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 # make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
-wl_sub[, value_adj := value - value[1], by = port]
+wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
+# p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head, #or head, or value, value_adj, etc
+              y = ~value_adj, #or head_mamsl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
-              name = ~port,
+              name = ~portloc,
               type = "scatter", mode = "lines")
+# %>%
+#   layout(
+#     shapes = list(
+#       list(
+#         type = "line",
+#         x0 = tprof_start_well2,
+#         x1 = tprof_start_well2,
+#         y0 = min(wl_sub$value_adj),
+#         y1 = max(wl_sub$value_adj),
+#         line = list(
+#           color = "red",
+#           width = 2
+#         )
+#       ),
+#       list(
+#         type = "line",
+#         x0 = tprof_end_well2,
+#         x1 = tprof_end_well2,
+#         y0 = min(wl_sub$value_adj),
+#         y1 = max(wl_sub$value_adj),
+#         line = list(
+#           color = "red",
+#           width = 2
+#         )
+#       )
+#     )
+#   )
+# xref = "x2"
 
 # plot baro
 p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~baro,
+              y = ~baro_m,
               name = "Baro",
               type = "scatter", mode = "lines")
 
@@ -154,16 +200,23 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 # custom axis range: range=list(1.5,4.5)
 # minor=list(nticks=50)
 # minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
+# shapes = list(line(tprof_start_well2))
 subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
   layout(
-    title = "ELR1-R1", 
+    title = "ELR1-R1: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head - DTW (m H20)"), 
-    yaxis2 = list(title = "Pressure (dbar)"),
+    yaxis = list(title = "Δ Pressure (m H20)"), 
+    yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
+
+# create DT for vertical head profiles
+vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")]
+# shorten table
+vhp <- vhp[, list(datetime, port, monitoring_location, head_mamsl)]
+write.csv(vhp, "vhp.csv")
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
