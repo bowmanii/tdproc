@@ -191,7 +191,7 @@ p1 <- plot_ly(wl_sub,
     xaxis = list(title = "Date and time (1 sec)",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Pressure (m H20)"), 
+    yaxis = list(title = "ΔPressure (m H20)"), 
     legend = list(traceorder = "reversed"),
     shapes = list(
       list(
