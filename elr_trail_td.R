@@ -34,6 +34,9 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 # Q for Kennel:
 ## what does on= do for dt manipulation? direct sub "on" the same values?
 ## follow up, by=??
+## "paste" fn is so slow, better way to do this?
+## plotly, no minor axis exists? have to use loops/ifs?
+## line, annotations list for plot...condense it?
 
 #####################################################################
 #### For future use after trial run w Jennie ####
@@ -174,6 +177,7 @@ wl_sub[, value_adj := value_m - value_m[1], by = port]
 #               colors = viridis(20),
 #               name = ~portloc,
 #               type = "scatter", mode = "lines")
+
 # t-profile plot layout
 p1 <- plot_ly(wl_sub,
               x = ~datetime,
