@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Aug 06, 2024
+# Last updated: Aug 08, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -73,8 +73,9 @@ tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
 #####################################################################
 
 # adjust for +34 min/-20 min before/after
-# tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
-# tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
+tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
+tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
+tprof_wt <- as.POSIXct("2024-06-25 16:37:00", tz = "UTC")
 
 # set where data files are located
 file_dir <- "data/"
@@ -88,6 +89,19 @@ setDT(loc)
 loc <- loc[well == "ELR1-R1"]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
+
+# read in centre wellington data (9 sheets), specify sheet, rows to skip
+cw_e4 <- read_xlsx("./data/cw_wells.xlsx", sheet = "Well E4", skip = 2)
+setDT(cw_e4)
+# assign column headers to dt
+colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
+
+# need to take difference between entries bc they are cumulative. need to reset every 24hours
+# come back to this because this is isnt
+#cw_e4[, flow2 := (Diff = lead(flow) - flow)]
+#cw_e4 %>%
+#  mutate(Diff = lead(flow) - flow) %>%
+#  fill(Diff)
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -138,13 +152,14 @@ wl[, baro_m := baro * dbar_to_m]
 wl[, value_m := value * dbar_to_m]
 
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
-wl[, head_mamsl := sensor_elev + (value_m - baro_m)]
+wl[, head_masl := sensor_elev + (value_m - baro_m)]
 
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+#wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 # make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
 wl_sub[, value_adj := value_m - value_m[1], by = port]
@@ -152,40 +167,97 @@ wl_sub[, value_adj := value_m - value_m[1], by = port]
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
-p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+# p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+#               x = ~datetime,
+#               y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+#               color = ~port,
+#               colors = viridis(20),
+#               name = ~portloc,
+#               type = "scatter", mode = "lines")
+# t-profile plot layout
+p1 <- plot_ly(wl_sub,
               x = ~datetime,
-              y = ~value_adj, #or head_mamsl, or value_m, value_adj, etc
+              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
-              type = "scatter", mode = "lines")
-# %>%
-#   layout(
-#     shapes = list(
-#       list(
-#         type = "line",
-#         x0 = tprof_start_well2,
-#         x1 = tprof_start_well2,
-#         y0 = min(wl_sub$value_adj),
-#         y1 = max(wl_sub$value_adj),
-#         line = list(
-#           color = "red",
-#           width = 2
-#         )
-#       ),
-#       list(
-#         type = "line",
-#         x0 = tprof_end_well2,
-#         x1 = tprof_end_well2,
-#         y0 = min(wl_sub$value_adj),
-#         y1 = max(wl_sub$value_adj),
-#         line = list(
-#           color = "red",
-#           width = 2
-#         )
-#       )
-#     )
-#   )
+              type = "scatter", mode = "lines")%>%
+  layout(
+    title = "ELR1-R1: Tprofile Response from ELR1-R2", 
+    xaxis = list(title = "Date and time (1 sec)",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Pressure (m H20)"), 
+    legend = list(traceorder = "reversed"),
+    shapes = list(
+      list(
+        type = "line",
+        x0 = tprof_start_well2,
+        x1 = tprof_start_well2,
+        y0 = -0.1, # change according to data range
+        y1 = 0.7, # change according to data range
+        line = list(
+          color = "red",
+          width = 2
+        )
+      ),
+      list(
+        type = "line",
+        x0 = tprof_end_well2,
+        x1 = tprof_end_well2,
+        y0 = -0.1,
+        y1 = 0.7,
+        line = list(
+          color = "red",
+          width = 2
+        )
+      ),
+      list(
+        type = "line",
+        x0 = tprof_wt,
+        x1 = tprof_wt,
+        y0 = -0.1,
+        y1 = 0.7,
+        line = list(
+          color = "red",
+          width = 2
+        )
+      )
+    ),
+    annotations = list(
+      list(
+        x = tprof_wt,   # X coordinate for the annotation
+        y = 0.7,  # Y coordinate for the annotation
+        text = "Liner @ WT (16:34)", # Text for the annotation
+        showarrow = TRUE, # Whether to show an arrow
+        arrowhead = 2, # Style of the arrow
+        ax = 0, # X offset for the text
+        ay = -30 # Y offset for the text (- = point down, + = point up)
+      ),
+      list(
+        x = tprof_start_well2,
+        y = 0.7,
+        text = "Start (17:04)",
+        showarrow = TRUE,
+        arrowhead = 2,
+        ax = -20,
+        ay = -30
+      ),
+      list(
+        x = tprof_end_well2,
+        y = 0.7,
+        text = "End (17:10)",
+        showarrow = TRUE,
+        arrowhead = 2,
+        ax = 20,
+        ay = -30
+      )
+    )
+  )
+# y0 = min(wl_sub$head_masl),
+# y1 = max(wl_sub$head_masl),
+# y0 = 367.7,
+# y1 = 369.5,
 # xref = "x2"
 
 # plot baro
@@ -193,6 +265,13 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro_m,
               name = "Baro",
+              type = "scatter", mode = "lines")
+
+# plot E4 flow rate
+p3 <- plot_ly(cw_e4,
+              x = ~time,
+              y = ~flow2,
+              name = "E4 - Flow",
               type = "scatter", mode = "lines")
 
 # display numerous plots in single view, customize plot features (axis titles, etc) using layout
