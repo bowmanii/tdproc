@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Aug 08, 2024
+# Last updated: Aug 23, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -116,7 +116,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1,3:18)],
+pr <- rsk::read_rsk(fn[c(1:18)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -136,11 +136,15 @@ pr <- loc[pr, on = "file_name"]
 
 # create baro dt from pr subset using condition when port is equal to baro_rbr
 baro <- pr[port == "baro_rbr"]
+# create liner dt from pr subset
+liner <- pr[port == "liner"]
 # create wl dt from pr subset using condition that excludes all ports equal to baros or liners
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
+# add liner pressure to wl dt
+wl <- liner[, list(datetime, liner = value)][wl, on = "datetime", nomatch = 0]
 
 # add port name to monitoring location
 ################# can this get speed up? better way? ############################################################
@@ -152,6 +156,7 @@ wl[, sensor_elev := elev1 - monitoring_location]
 
 # convert all pressures to m H20
 wl[, baro_m := baro * dbar_to_m]
+wl[, liner_m := liner * dbar_to_m]
 wl[, value_m := value * dbar_to_m]
 
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
@@ -161,108 +166,22 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
-#wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
-wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
+wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
+
 # make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
-# p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
-#               x = ~datetime,
-#               y = ~head_masl, #or head_masl, or value_m, value_adj, etc
-#               color = ~port,
-#               colors = viridis(20),
-#               name = ~portloc,
-#               type = "scatter", mode = "lines")
-
-# t-profile plot layout
-p1 <- plot_ly(wl_sub,
+p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
-              type = "scatter", mode = "lines")%>%
-  layout(
-    title = "ELR1-R1: Tprofile Response from ELR1-R2", 
-    xaxis = list(title = "Date and time (1 sec)",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis = list(title = "ΔPressure (m H20)"), 
-    legend = list(traceorder = "reversed"),
-    shapes = list(
-      list(
-        type = "line",
-        x0 = tprof_start_well2,
-        x1 = tprof_start_well2,
-        y0 = -0.1, # change according to data range
-        y1 = 0.7, # change according to data range
-        line = list(
-          color = "red",
-          width = 2
-        )
-      ),
-      list(
-        type = "line",
-        x0 = tprof_end_well2,
-        x1 = tprof_end_well2,
-        y0 = -0.1,
-        y1 = 0.7,
-        line = list(
-          color = "red",
-          width = 2
-        )
-      ),
-      list(
-        type = "line",
-        x0 = tprof_wt,
-        x1 = tprof_wt,
-        y0 = -0.1,
-        y1 = 0.7,
-        line = list(
-          color = "red",
-          width = 2
-        )
-      )
-    ),
-    annotations = list(
-      list(
-        x = tprof_wt,   # X coordinate for the annotation
-        y = 0.7,  # Y coordinate for the annotation
-        text = "Liner @ WT (16:34)", # Text for the annotation
-        showarrow = TRUE, # Whether to show an arrow
-        arrowhead = 2, # Style of the arrow
-        ax = 0, # X offset for the text
-        ay = -30 # Y offset for the text (- = point down, + = point up)
-      ),
-      list(
-        x = tprof_start_well2,
-        y = 0.7,
-        text = "Start (17:04)",
-        showarrow = TRUE,
-        arrowhead = 2,
-        ax = -20,
-        ay = -30
-      ),
-      list(
-        x = tprof_end_well2,
-        y = 0.7,
-        text = "End (17:10)",
-        showarrow = TRUE,
-        arrowhead = 2,
-        ax = 20,
-        ay = -30
-      )
-    )
-  )
-# y0 = min(wl_sub$head_masl),
-# y1 = max(wl_sub$head_masl),
-# y0 = 367.7,
-# y1 = 369.5,
-# xref = "x2"
+              type = "scatter", mode = "lines")
 
 # plot baro
 p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
@@ -271,12 +190,116 @@ p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               name = "Baro",
               type = "scatter", mode = "lines")
 
+# plot liner
+p3 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~liner_m,
+              name = "Liner",
+              type = "scatter", mode = "lines")
+
+# merging baro and liner plots together on one
+p4 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
+  layout(
+    title = "Liner Vs. Baro Response", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Pressure (m H20)"),
+    legend = list(trace0 = "Liner", trace1 = "Baro")
+  )
+
 # plot E4 flow rate
-p3 <- plot_ly(cw_e4,
+p5 <- plot_ly(cw_e4,
               x = ~time,
               y = ~flow2,
               name = "E4 - Flow",
               type = "scatter", mode = "lines")
+
+# t-profile plot layout
+# p1 <- plot_ly(wl_sub,
+#               x = ~datetime,
+#               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+#               color = ~port,
+#               colors = viridis(20),
+#               name = ~portloc,
+#               type = "scatter", mode = "lines")%>%
+#   layout(
+#     title = "ELR1-R1: Tprofile Response from ELR1-R2", 
+#     xaxis = list(title = "Date and time (1 sec)",
+#                  nticks = 20,
+#                  tickangle = -45),
+#     yaxis = list(title = "ΔPressure (m H20)"), 
+#     legend = list(traceorder = "reversed"),
+#     shapes = list(
+#       list(
+#         type = "line",
+#         x0 = tprof_start_well2,
+#         x1 = tprof_start_well2,
+#         y0 = -0.1, # change according to data range
+#         y1 = 0.7, # change according to data range
+#         line = list(
+#           color = "red",
+#           width = 2
+#         )
+#       ),
+#       list(
+#         type = "line",
+#         x0 = tprof_end_well2,
+#         x1 = tprof_end_well2,
+#         y0 = -0.1,
+#         y1 = 0.7,
+#         line = list(
+#           color = "red",
+#           width = 2
+#         )
+#       ),
+#       list(
+#         type = "line",
+#         x0 = tprof_wt,
+#         x1 = tprof_wt,
+#         y0 = -0.1,
+#         y1 = 0.7,
+#         line = list(
+#           color = "red",
+#           width = 2
+#         )
+#       )
+#     ),
+#     annotations = list(
+#       list(
+#         x = tprof_wt,   # X coordinate for the annotation
+#         y = 0.7,  # Y coordinate for the annotation
+#         text = "Liner @ WT (16:34)", # Text for the annotation
+#         showarrow = TRUE, # Whether to show an arrow
+#         arrowhead = 2, # Style of the arrow
+#         ax = 0, # X offset for the text
+#         ay = -30 # Y offset for the text (- = point down, + = point up)
+#       ),
+#       list(
+#         x = tprof_start_well2,
+#         y = 0.7,
+#         text = "Start (17:04)",
+#         showarrow = TRUE,
+#         arrowhead = 2,
+#         ax = -20,
+#         ay = -30
+#       ),
+#       list(
+#         x = tprof_end_well2,
+#         y = 0.7,
+#         text = "End (17:10)",
+#         showarrow = TRUE,
+#         arrowhead = 2,
+#         ax = 20,
+#         ay = -30
+#       )
+#     )
+#   )
+# y0 = min(wl_sub$head_masl),
+# y1 = max(wl_sub$head_masl),
+# y0 = 367.7,
+# y1 = 369.5,
+# xref = "x2"
 
 # display numerous plots in single view, customize plot features (axis titles, etc) using layout
 # to make axis values reverse: yaxis=list(autorange="reversed")
@@ -295,11 +318,25 @@ subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
     legend = list(traceorder = "reversed")
   )
 
+# plot baro, liner, wl together
+subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head (m asl"), 
+    yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
 # create DT for vertical head profiles
-vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")]
+#vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")] #old choice
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
+#write.csv(vhp, "ELR1-R1_vhp_Hamid.csv")
 # shorten table
-vhp <- vhp[, list(datetime, port, monitoring_location, head_mamsl)]
-write.csv(vhp, "vhp.csv")
+vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
+write.csv(vhp, "out/ELR1-R1_vhp_v2.csv")
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]

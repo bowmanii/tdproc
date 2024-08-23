@@ -186,6 +186,7 @@ wl_sub[, c("liner", "baro", "site", "serial", "is_baro", "use", "variable", "val
 
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
+# p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
@@ -212,7 +213,7 @@ p3 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
   )
 
 # merging baro and liner plots together on one
-#p3 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines")
+#p4 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines")
 
 # plot E4 flow rate
 p5 <- plot_ly(cw_e4,
@@ -220,34 +221,6 @@ p5 <- plot_ly(cw_e4,
               y = ~flow2,
               name = "E4 - Flow",
               type = "scatter", mode = "lines")
-
-# display numerous plots in single view, customize plot features (axis titles, etc) using layout
-# to make axis values reverse: yaxis=list(autorange="reversed")
-# custom axis range: range=list(1.5,4.5)
-# minor=list(nticks=50)
-# minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
-# shapes = list(line(tprof_start_well2))
-subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), #ΔPressure (m H20)
-    yaxis2 = list(title = "Pressure (m H20)"),
-    legend = list(traceorder = "reversed")
-  )
-
-subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis = list(title = "Pressure (m H20"), 
-    yaxis2 = list(title = "Pressure (m H20)"),
-    legend = list(traceorder = "reversed")
-  )
 
 # t-profile plot layout
 # p1 <- plot_ly(wl_sub,
@@ -335,13 +308,42 @@ subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
 # y1 = 369.5,
 # xref = "x2"
 
+# display numerous plots in single view, customize plot features (axis titles, etc) using layout
+# to make axis values reverse: yaxis=list(autorange="reversed")
+# custom axis range: range=list(1.5,4.5)
+# minor=list(nticks=50)
+# minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
+# shapes = list(line(tprof_start_well2))
+subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (m H20)"), #ΔPressure (m H20)
+    yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot baro, liner, wl together
+subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head (m asl"), 
+    yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
 # create DT for vertical head profiles, use wl_sub (smaller dt)
 #vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
 vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
-# write.csv(vhp, "ELR1-R2_vhp_Hamid.csv")
+#write.csv(vhp, "ELR1-R2_vhp_Hamid.csv")
 # shorten table further if desired
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
-write.csv(vhp, "ELR1-R2_vhp.csv")
+write.csv(vhp, "out/ELR1-R2_vhp.csv")
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
