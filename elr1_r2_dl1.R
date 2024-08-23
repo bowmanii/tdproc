@@ -35,7 +35,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 ## what does on= do for dt manipulation? direct sub "on" the same values?
 ## follow up, by=??
 ## "paste" fn is so slow, better way to do this?
-## plotly, no minor axis exists? have to use loops/ifs?
+## plotly, no minor axis exists? have to use loops/ifs? (want to see smaller grids)
 ## line, annotations list for plot...condense it?
 
 #####################################################################
@@ -44,7 +44,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #well1 <- "ELR1-R1"
 #well2 <- "ELR1-R2"
 
-# well elevation (m amsl)
+# well elevation (m asl)
 elev1 <- 377.540 + 0.580
 elev2 <- 379.612 + 0.530
 
@@ -105,7 +105,7 @@ loc <- loc[grep("rsk", file_name)]
 #colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
 
 # need to take difference between entries bc they are cumulative. need to reset every 24hours
-# come back to this because this is isnt
+# come back to this because this isnt it
 #cw_e4[, flow2 := (Diff = lead(flow) - flow)]
 #cw_e4 %>%
 #  mutate(Diff = lead(flow) - flow) %>%
@@ -117,7 +117,7 @@ fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
 # cross reference the data files to the data table file_name column
 fn <- fn[basename(fn) %in% loc$file_name]
 
-# using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
+# using Kennels rsk package, read transducer files from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
@@ -188,11 +188,66 @@ wl_sub[, c("liner", "baro", "site", "serial", "is_baro", "use", "variable", "val
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
               type = "scatter", mode = "lines")
+
+# plot baro
+p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~baro_m,
+              name = "Baro",
+              type = "scatter", mode = "lines")
+
+# plot liner
+p3 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+              x = ~datetime,
+              y = ~liner_m,
+              name = "Liner",
+              type = "scatter", mode = "lines") %>%
+  layout(
+    yaxis = list(range = c(16.2,17))
+  )
+
+# merging baro and liner plots together on one
+#p3 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines")
+
+# plot E4 flow rate
+p5 <- plot_ly(cw_e4,
+              x = ~time,
+              y = ~flow2,
+              name = "E4 - Flow",
+              type = "scatter", mode = "lines")
+
+# display numerous plots in single view, customize plot features (axis titles, etc) using layout
+# to make axis values reverse: yaxis=list(autorange="reversed")
+# custom axis range: range=list(1.5,4.5)
+# minor=list(nticks=50)
+# minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
+# shapes = list(line(tprof_start_well2))
+subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (m H20)"), #ΔPressure (m H20)
+    yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
+subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Pressure (m H20"), 
+    yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
 
 # t-profile plot layout
 # p1 <- plot_ly(wl_sub,
@@ -280,67 +335,13 @@ p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 # y1 = 369.5,
 # xref = "x2"
 
-# plot baro
-p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
-              x = ~datetime,
-              y = ~baro_m,
-              name = "Baro",
-              type = "scatter", mode = "lines")
-
-# plot liner
-p3 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
-              x = ~datetime,
-              y = ~liner_m,
-              name = "Liner",
-              type = "scatter", mode = "lines") %>%
-  layout(
-    yaxis = list(range = c(16.2,17))
-  )
-
-# merging baro and liner plots together on one
-#p3 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines")
-
-
-# plot E4 flow rate
-p5 <- plot_ly(cw_e4,
-              x = ~time,
-              y = ~flow2,
-              name = "E4 - Flow",
-              type = "scatter", mode = "lines")
-
-# display numerous plots in single view, customize plot features (axis titles, etc) using layout
-# to make axis values reverse: yaxis=list(autorange="reversed")
-# custom axis range: range=list(1.5,4.5)
-# minor=list(nticks=50)
-# minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
-# shapes = list(line(tprof_start_well2))
-subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis = list(title = "Head (m asl)"), 
-    yaxis2 = list(title = "Pressure (m H20)"),
-    legend = list(traceorder = "reversed")
-  )
-
-subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis = list(title = "Head (m asl)"), 
-    yaxis2 = list(title = "Pressure (m H20)"),
-    legend = list(traceorder = "reversed")
-  )
-
-# create DT for vertical head profiles
-vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")]
-# shorten table
-vhp <- vhp[, list(datetime, port, monitoring_location, head_masl)]
-write.csv(vhp, "vhp.csv")
+# create DT for vertical head profiles, use wl_sub (smaller dt)
+#vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
+# write.csv(vhp, "ELR1-R2_vhp_Hamid.csv")
+# shorten table further if desired
+vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
+write.csv(vhp, "ELR1-R2_vhp.csv")
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
