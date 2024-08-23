@@ -177,7 +177,7 @@ wl_sub[, value_adj := value_m - value_m[1], by = port]
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
@@ -313,7 +313,7 @@ subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), 
+    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -325,7 +325,7 @@ subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl"), 
+    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
