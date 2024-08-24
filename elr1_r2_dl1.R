@@ -63,8 +63,8 @@ elev2 <- 379.612 + 0.530
 # sealed hole
 #seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
 #seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
-seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
-seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
+seal_start_well2 <- as.POSIXct("2024-04-05 15:47:00", tz = "UTC")
+seal_end_well2 <- as.POSIXct("2024-06-24 14:34:00", tz = "UTC")
 
 # t-profile
 # for well1: estimated times, no notes taken?
@@ -178,7 +178,7 @@ setkey(wl, datetime)
 wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well2)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 
-# make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
+# make new col in dt, calculation is pressure
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # shorten table
@@ -189,7 +189,7 @@ wl_sub[, c("liner", "baro", "site", "serial", "is_baro", "use", "variable", "val
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
@@ -316,11 +316,11 @@ p5 <- plot_ly(cw_e4,
 # shapes = list(line(tprof_start_well2))
 subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
+    title = "ELR1-R2: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), #ΔPressure (m H20)
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -328,11 +328,11 @@ subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
 # plot baro, liner, wl together
 subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
+    title = "ELR1-R2: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl"), 
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
