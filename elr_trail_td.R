@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Aug 23, 2024
+# Last updated: Dec 04, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -60,11 +60,17 @@ elev2 <- 379.612 + 0.530
 #blend_start_well2 <- as.POSIXct("2024-04-02 17:12:00", tz = "UTC")
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC")
 
-# sealed hole
+# sealed hole - first deployment
 seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
 seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
+
+# sealed hole - second deployment
+seal_start_well3 <- as.POSIXct("2024-07-09 17:32:00", tz = "UTC")
+seal_end_well3 <- as.POSIXct("2024-07-29 15:03:00", tz = "UTC")
+#seal_start_well4 <- as.POSIXct("2024-06-25 21:49:00", tz = "UTC")
+#seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
 
 # t-profile
 # for well1: estimated times, no notes taken?
@@ -101,10 +107,37 @@ colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
 
 # need to take difference between entries bc they are cumulative. need to reset every 24hours
 # come back to this because this is isnt
-#cw_e4[, flow2 := (Diff = lead(flow) - flow)]
+cw_e4[, flow2 := (Diff = lead(flow) - flow)]
 #cw_e4 %>%
 #  mutate(Diff = lead(flow) - flow) %>%
 #  fill(Diff)
+for (i in 1:nrow(cw_e4)) {
+  
+}
+
+cw_e4[, {
+  flow3 := (Diff = lead(flow) - flow)
+}]
+
+cw_e4[, {
+  if (cw_e4[time %in% c("00:00:00")]) {
+    flow4 = flow
+  } else {
+    flow4 := (Diff = lead(flow) - flow)
+  }
+}]
+
+cw_e4[, flow4 := ifelse(cw_e4[time %in% c("00:00:00")], flow, (diff = lead(flow) - flow))]
+
+cw_e4[, flow5 := ifelse(grepl("00:00:00", cw_e4$time), flow, (diff = lead(flow) - flow))]
+
+cw_e4[, flow6 := ifelse((as.numeric(time) %% 86400) == 0, flow, lead(flow) - flow)]
+
+cw_e4[, flow7 := ifelse((as.numeric(time) %% 86400) == 0, flow, lag(flow) - flow)]
+
+cw_e4[, flow8 := ifelse((as.numeric(time) %% 86400) == 0, flow, (lag(flow) - flow)*-1)]
+
+cw_e4[, flow9 := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
