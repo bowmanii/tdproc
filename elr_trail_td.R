@@ -108,14 +108,103 @@ colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
 # take difference between hourly flow rate (they are cumultaive daily), reset every 24hrs
 cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
 
+# would like to figure out how to change to UTC for all data read in but can't right now
+# use this hack method instead
+# subset data using the time in EST or EDT that you want
+# (have to say tz=UTC bc thats default even tho its actually EST/EDT)
+# then perform the time manipulations on the subset
+cw_e4_sub <- cw_e4[time %between% as.POSIXct(c("2023-04-05 14:00:00", "2023-06-25 16:00:00"), tz = "UTC")]
+
+# convert time to UTC
+cw_e4_sub[, time_UTC := time + 3600*4]
+
+# define time zone changes
+# edt +4, est +5
+######################## I don't know if my times make sense? midnight and 11? should be 1 AM??
+######################## why does it make it EDT and EST once I set to variable??
+edt1_start <- as.POSIXct("2023-03-12 00:00:00")
+edt1_end <- as.POSIXct("2023-11-04 23:00:00")
+
+est1_start <- as.POSIXct("2023-11-05 00:00:00")
+est1_end <- as.POSIXct("2024-03-09 23:00:00")
+
+edt2_start <- as.POSIXct("2024-03-10 00:00:00")
+edt2_end <- as.POSIXct("2024-11-03 23:00:00")
+
+# apply formula
+cw_e4[time < edt1_end, time_utc := time + 3600*4]
+# this is the way I want to do it
+cw_e4[time %between% c(edt1_start, edt1_end), time_utc2 := time + 3600*4]
+
+edt1_start1 <- as.POSIXct("2023-03-12 02:00:00")
+edt1_end1 <- as.POSIXct("2023-11-05 01:00:00")
+cw_e4[time %between% c(edt1_start1, edt1_end1), time_utc3 := time + 3600*4]
+
+edt1_start1 <- as.POSIXct("2023-03-12 01:00:00") #est
+edt1_start2 <- as.POSIXct("2023-03-12 02:00:00") #doesnt exist
+edt1_start3 <- as.POSIXct("2023-03-12 03:00:00") #edt**
+
+edt1_end1 <- as.POSIXct("2023-11-05 01:00:00") #edt**
+edt1_end11 <- as.POSIXct("2023-11-04 21:00:00") #edt****
+edt1_end2 <- as.POSIXct("2023-11-05 02:00:00") #est
+edt1_end3 <- as.POSIXct("2023-11-05 03:00:00") #est
+
+est1_start1 <- as.POSIXct("2023-11-05 01:00:00") #edt
+est1_start22 <- as.POSIXct("2023-11-04 22:00:00") #edt****
+est1_start2 <- as.POSIXct("2023-11-05 02:00:00") #est**
+est1_start3 <- as.POSIXct("2023-11-05 03:00:00") #est
+
+est1_end1 <- as.POSIXct("2024-03-10 01:00:00") #est**
+est1_end11 <- as.POSIXct("2024-03-09 21:00:00") #est****
+est1_end2 <- as.POSIXct("2024-03-10 02:00:00") #doesnt exist
+est1_end3 <- as.POSIXct("2024-03-10 03:00:00") #edt
+
+cw_e4[time %between% c(edt1_start3, edt1_end1), time_utc4 := time + 3600*4]
+cw_e4[time %between% c(edt1_start3, edt1_end11), time_utc5 := time + 3600*4] #*****
+#doesnt start switching until 5:00 am local time. needs to 2:00 am
+cw_e4[time %between% c(est1_start1, est1_end1), time_utc4 := time + 3600*5]
+cw_e4[time %between% c(est1_start22, est1_end11), time_utc5 := time + 3600*5] #*****
+
+edt2_start <- as.POSIXct("2024-03-09 22:00:00") #est****
+edt2_end <- as.POSIXct("2024-11-02 21:00:00") #edt****
+
+cw_e4[time %between% c(edt2_start, edt2_end), time_utc5 := time + 3600*4] #*****
+tz <- attr(cw_e4$time_utc5, "tzone")
+
+############## SOLVED ##########################################################################################
+
+edt1_start <- as.POSIXct("2023-03-11 22:00:00") #est
+edt1_end <- as.POSIXct("2023-11-04 21:00:00") #edt
+
+est1_start <- as.POSIXct("2023-11-04 22:00:00") #edt
+est1_end <- as.POSIXct("2024-03-09 21:00:00") #est
+
+edt2_start <- as.POSIXct("2024-03-09 22:00:00") #est
+edt2_end <- as.POSIXct("2024-11-02 21:00:00") #edt
+
+cw_e4[time %between% c(edt1_start, edt1_end), time_utc := time + 3600*4]
+cw_e4[time %between% c(est1_start, est1_end), time_utc := time + 3600*5]
+cw_e4[time %between% c(edt2_start, edt2_end), time_utc := time + 3600*4]
+#################################################################################################################
+
+#
+cw_e4[time >= est1_start, time_utc := time + 3600*5]
+# this is the way I want to do it
+cw_e4[time %between% c(est1_start, est1_end), time_utc2 := time + 3600*5]
+
+
+#################################################################
+# only returns those two dates. If don't specify tx, it takes the 4 entry..
+#cw_e4_sub <- cw_e4[time %in% as.POSIXct(c("2023-04-01 00:00:00", "2023-11-05 00:00:00"), tz = "UTC")]
+#cw_e4[, time_UTC2 := time + 3600*4 %between% c("2023-04-01 00:00:00", "2023-11-05 00:00:00")]
+
+#################################################################
 # convert time to UTC
 #cw_e4$time = as.POSIXct(cw_e4$time, tz = "America/Toronto")
 #cw_e4[, time_utc := format(time, tz = "UTC", usetz = TRUE)]
+#cw_e4[, time_posix := as.POSIXct(time, format = "%Y-%m-%d %H:%M:%S", tz = "America/Toronto")]
+#################################################################
 
-cw_e4[, time_posix := as.POSIXct(time, format = "%Y-%m-%d %H:%M:%S", tz = "America/Toronto")]
-
-timezone <- attr(cw_e4$time, "tzone")
-print(timezone)
 
 
 # list all file names from "data" folder, return full file path, only .rsk files
