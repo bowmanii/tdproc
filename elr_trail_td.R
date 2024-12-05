@@ -105,39 +105,18 @@ setDT(cw_e4)
 # assign column headers to dt
 colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
 
-# need to take difference between entries bc they are cumulative. need to reset every 24hours
-# come back to this because this is isnt
-cw_e4[, flow2 := (Diff = lead(flow) - flow)]
-#cw_e4 %>%
-#  mutate(Diff = lead(flow) - flow) %>%
-#  fill(Diff)
-for (i in 1:nrow(cw_e4)) {
-  
-}
+# take difference between hourly flow rate (they are cumultaive daily), reset every 24hrs
+cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
 
-cw_e4[, {
-  flow3 := (Diff = lead(flow) - flow)
-}]
+# convert time to UTC
+#cw_e4$time = as.POSIXct(cw_e4$time, tz = "America/Toronto")
+#cw_e4[, time_utc := format(time, tz = "UTC", usetz = TRUE)]
 
-cw_e4[, {
-  if (cw_e4[time %in% c("00:00:00")]) {
-    flow4 = flow
-  } else {
-    flow4 := (Diff = lead(flow) - flow)
-  }
-}]
+cw_e4[, time_posix := as.POSIXct(time, format = "%Y-%m-%d %H:%M:%S", tz = "America/Toronto")]
 
-cw_e4[, flow4 := ifelse(cw_e4[time %in% c("00:00:00")], flow, (diff = lead(flow) - flow))]
+timezone <- attr(cw_e4$time, "tzone")
+print(timezone)
 
-cw_e4[, flow5 := ifelse(grepl("00:00:00", cw_e4$time), flow, (diff = lead(flow) - flow))]
-
-cw_e4[, flow6 := ifelse((as.numeric(time) %% 86400) == 0, flow, lead(flow) - flow)]
-
-cw_e4[, flow7 := ifelse((as.numeric(time) %% 86400) == 0, flow, lag(flow) - flow)]
-
-cw_e4[, flow8 := ifelse((as.numeric(time) %% 86400) == 0, flow, (lag(flow) - flow)*-1)]
-
-cw_e4[, flow9 := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -149,7 +128,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:18)],
+pr <- rsk::read_rsk(fn[c(1:36)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -201,6 +180,8 @@ setkey(wl, datetime)
 # subset the wl dt by desired times
 wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
+# subset pumping data by desired times
+cw_e4_sub <-cw_e4[time %between% c(seal_start_well1, seal_end_well1)]
 
 # make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
 wl_sub[, value_adj := value_m - value_m[1], by = port]
