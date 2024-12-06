@@ -71,14 +71,14 @@ seal_end_well3 <- as.POSIXct("2024-07-29 15:03:00", tz = "UTC")
 #seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
 
 # pumping data for sealed holes
-cw_pump_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
-cw_pump_end1 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
-#cw_pump_start2 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
-#cw_pump_end2 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
-cw_pump_start3 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
-cw_pump_end3 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
-#cw_pump_start4 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
-#cw_pump_end4 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+cw_pump_start1 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
+cw_pump_end1 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
+#cw_pump_start2 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
+#cw_pump_end2 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
+cw_pump_start3 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
+cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
+#cw_pump_start4 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
+#cw_pump_end4 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
 
 # t-profile
 # for well1: estimated times, no notes taken?
@@ -133,9 +133,15 @@ edt2_start <- as.POSIXct("2024-03-09 22:00:00")
 edt2_end <- as.POSIXct("2024-11-02 21:00:00")
 
 # make a new col where time is in UTC and corrected for EDT
+# 60sec*60min*4hr/60sec*60min*5hr
 cw_e4[time %between% c(edt1_start, edt1_end), time_utc := time + 3600*4]
 cw_e4[time %between% c(est1_start, est1_end), time_utc := time + 3600*5]
 cw_e4[time %between% c(edt2_start, edt2_end), time_utc := time + 3600*4]
+
+# check what type of data working with
+#cl <- class(cw_e4$time_utc)
+#tz <- attr(cw_e4$time_utc, "tzone")
+cl2 <- class(wl_sub$datetime)
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -197,19 +203,20 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+wl_sub <- wl[datetime %between% c(seal_start_well3, seal_end_well3)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
-
-# subset pumping data by desired times
-cw_e4_sub <-cw_e4[time_utc %between% c(cw_pump_start1, cw_pump_end1)]
+#write.csv(wl_sub, "out/ELR1-R1_20240405_20240625.csv") # this takes like 1 hr, wont open in excel
 
 # make new col in dt, calculation is pressure - the first pressure entry (2024-04-05 18:33:00)
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
+# subset pumping data by desired times
+cw_e4_sub <-cw_e4[time_utc %between% c(cw_pump_start1, cw_pump_end1)]
+
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
-p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
               color = ~port,
@@ -218,21 +225,21 @@ p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               type = "scatter", mode = "lines")
 
 # plot baro
-p2 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro_m,
               name = "Baro",
               type = "scatter", mode = "lines")
 
 # plot liner
-p3 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
+p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~liner_m,
               name = "Liner",
               type = "scatter", mode = "lines")
 
 # merging baro and liner plots together on one
-p4 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
+p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
   layout(
     title = "Liner Vs. Baro Response", 
     xaxis = list(title = "Date and time",
@@ -243,11 +250,12 @@ p4 <- add_trace(p3, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines"
   )
 
 # plot E4 flow rate
-p5 <- plot_ly(cw_e4,
-              x = ~time,
-              y = ~flow2,
-              name = "E4 - Flow",
+p_cw <- plot_ly(cw_e4_sub,
+              x = ~time_utc,
+              y = ~flow_hrly_avg,
+              name = "E4 - Avg Flow (m3/hr)",
               type = "scatter", mode = "lines")
+
 
 # t-profile plot layout
 # p1 <- plot_ly(wl_sub,
@@ -341,7 +349,7 @@ p5 <- plot_ly(cw_e4,
 # minor=list(nticks=50)
 # minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
 # shapes = list(line(tprof_start_well2))
-subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
+subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
   layout(
     title = "ELR1-R1: Temporary Deployment", 
     xaxis = list(title = "Date and time",
@@ -353,7 +361,7 @@ subplot(p1, p2, shareX = TRUE, nrows = 2)%>%
   )
 
 # plot baro, liner, wl together
-subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
+s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
     title = "ELR1-R1: Temporary Deployment", 
     xaxis = list(title = "Date and time",
@@ -361,6 +369,19 @@ subplot(p1, p2, p3, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
                  tickangle = -45),
     yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, pump together
+s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis3 = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)"),
+    yaxis4 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
 
