@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 05, 2024
+# Last updated: Dec 09, 2024
 # Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
 
 # https://github.com/jkennel
@@ -141,7 +141,7 @@ cw_e4[time %between% c(edt2_start, edt2_end), time_utc := time + 3600*4]
 # check what type of data working with
 #cl <- class(cw_e4$time_utc)
 #tz <- attr(cw_e4$time_utc, "tzone")
-cl2 <- class(wl_sub$datetime)
+#cl2 <- class(wl_sub$datetime)
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -179,9 +179,12 @@ liner <- pr[port == "liner"]
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
-wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
+# nomatch=0 = drops rows w/out a match
+# nomatch=NA = leftjoin, keeps all rows from left table, fills missing with NA
+# nomatch=-1 = returns error when no match, join error
+wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
-wl <- liner[, list(datetime, liner = value)][wl, on = "datetime", nomatch = 0]
+wl <- liner[, list(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
 
 # add port name to monitoring location
 ################# can this get speed up? better way? ############################################################
@@ -203,7 +206,7 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 setkey(wl, datetime)
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well3, seal_end_well3)]
+wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 #write.csv(wl_sub, "out/ELR1-R1_20240405_20240625.csv") # this takes like 1 hr, wont open in excel
 
@@ -211,14 +214,14 @@ wl_sub <- wl[datetime %between% c(seal_start_well3, seal_end_well3)]
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # subset pumping data by desired times
-cw_e4_sub <-cw_e4[time_utc %between% c(cw_pump_start1, cw_pump_end1)]
+cw_e4_sub <-cw_e4[time_utc %between% c(cw_pump_start1, cw_pump_end3)]
 
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
               color = ~port,
               colors = viridis(20),
               name = ~portloc,
@@ -253,7 +256,7 @@ p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter",
 p_cw <- plot_ly(cw_e4_sub,
               x = ~time_utc,
               y = ~flow_hrly_avg,
-              name = "E4 - Avg Flow (m3/hr)",
+              name = "E4 Flow",
               type = "scatter", mode = "lines")
 
 
@@ -349,13 +352,13 @@ p_cw <- plot_ly(cw_e4_sub,
 # minor=list(nticks=50)
 # minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
 # shapes = list(line(tprof_start_well2))
-subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
+s <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
   layout(
     title = "ELR1-R1: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -367,7 +370,7 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -379,8 +382,10 @@ s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis3 = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
-    yaxis = list(title = "Pressure (m H20)"),
+    yaxis3 = list(title = "Pressure (m asl)",
+                  range = c(367, 373.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)",
+                  range = c(14, 15.5)),
     yaxis4 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
