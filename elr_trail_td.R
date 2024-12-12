@@ -3,11 +3,11 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 09, 2024
-# Description: Processing temporary deployment data from April 5 2024 - June 24/25 2024 on trail wells
+# Last updated: Dec 12, 2024
+# Description: Processing temporary deployment data from 2024 on trail wells
 
-# https://github.com/jkennel
 # https://github.com/bowmanii
+# https://github.com/jkennel
 
 # activate applicable packages
 library(data.table)
@@ -17,6 +17,7 @@ library(remotes)
 library(readxl)
 library(viridis)
 library(dplyr)
+library(lubridate)
 
 # pull in Kennel's packages if don't already have
 #remotes::install_github("jkennel/rsk")
@@ -27,17 +28,16 @@ library(rsk)
 library(transducer)
 library(hydrorecipes)
 
-# constants
-dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of H20
-
-#####################################################################
+###############################################################################
 # Q for Kennel:
 ## "paste" fn is so slow, better way to do this?
 ## plotly, no minor axis exists? have to use loops/ifs?
 ## line, annotations list for plot...condense it?
 
-#####################################################################
-#### For future use after trial run w Jennie ####
+###############################################################################
+#### Constants ####
+
+dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of H20
 
 #well1 <- "ELR1-R1"
 #well2 <- "ELR1-R2"
@@ -71,6 +71,7 @@ seal_end_well3 <- as.POSIXct("2024-07-29 15:03:00", tz = "UTC")
 #seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
 
 # pumping data for sealed holes
+# 2023 data. Waiting for 2024 data
 cw_pump_start1 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
 cw_pump_end1 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
 #cw_pump_start2 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
@@ -80,6 +81,16 @@ cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
 #cw_pump_start4 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
 #cw_pump_end4 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
 
+# climate data
+cw_rain_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
+cw_rain_end1 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
+#cw_rain_start2 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
+#cw_rain_end2 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
+cw_rain_start3 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
+cw_rain_end3 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+#cw_rain_start4 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
+#cw_rain_end4 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+
 # t-profile
 # for well1: estimated times, no notes taken?
 #tprof_start_well1 <- as.POSIXct("2024-06-26 14:41:00", tz = "UTC")
@@ -87,7 +98,8 @@ cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
 tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
 tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
 
-#####################################################################
+###############################################################################
+#### Data Manipulation ####
 
 # adjust for +34 min/-20 min before/after
 tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
@@ -112,9 +124,15 @@ cw_e4 <- read_xlsx("./data/cw_wells.xlsx", sheet = "Well E4", skip = 2)
 setDT(cw_e4)
 # assign column headers to dt
 colnames(cw_e4) <- c("time", "flow", "drawdown", "waterlevel", "comments")
-
 # take difference between hourly flow rate (they are cumulative daily), reset every 24hrs
 cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
+# overwrite timezone to EST/EDT (read_xlsx auto assumes UTC, this is wrong in this case)
+cw_e4[, datetime := force_tz(time, tzone = "America/Toronto")]
+# convert EDT/EST time zones to UTC, will auto adjust for time shifts
+cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
+
+###############################################################################
+# this was first attempt, manually changing, good ref but found quicker way above!
 
 # define EDT vs EST time zones
 # assuming CW data is in EDT/EST tz
@@ -123,25 +141,38 @@ cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - l
 # ex. edt1_start_true <- as.POSIXct("2023-03-12 02:00:00")
 # ex. edt1_end_true <- as.POSIXct("2023-11-05 01:00:00")
 
-edt1_start <- as.POSIXct("2023-03-11 22:00:00")
-edt1_end <- as.POSIXct("2023-11-04 21:00:00")
+#edt1_start <- as.POSIXct("2023-03-11 22:00:00")
+#edt1_end <- as.POSIXct("2023-11-04 21:00:00")
 
-est1_start <- as.POSIXct("2023-11-04 22:00:00")
-est1_end <- as.POSIXct("2024-03-09 21:00:00")
+#est1_start <- as.POSIXct("2023-11-04 22:00:00")
+#est1_end <- as.POSIXct("2024-03-09 21:00:00")
 
-edt2_start <- as.POSIXct("2024-03-09 22:00:00")
-edt2_end <- as.POSIXct("2024-11-02 21:00:00")
+#edt2_start <- as.POSIXct("2024-03-09 22:00:00")
+#edt2_end <- as.POSIXct("2024-11-02 21:00:00")
 
 # make a new col where time is in UTC and corrected for EDT
 # 60sec*60min*4hr/60sec*60min*5hr
-cw_e4[time %between% c(edt1_start, edt1_end), time_utc := time + 3600*4]
-cw_e4[time %between% c(est1_start, est1_end), time_utc := time + 3600*5]
-cw_e4[time %between% c(edt2_start, edt2_end), time_utc := time + 3600*4]
+#cw_e4[time %between% c(edt1_start, edt1_end), time_utc := time + 3600*4]
+#cw_e4[time %between% c(est1_start, est1_end), time_utc := time + 3600*5]
+#cw_e4[time %between% c(edt2_start, edt2_end), time_utc := time + 3600*4]
 
 # check what type of data working with
 #cl <- class(cw_e4$time_utc)
 #tz <- attr(cw_e4$time_utc, "tzone")
 #cl2 <- class(wl_sub$datetime)
+###############################################################################
+
+# precipitation data - monthly files - Elora RCS
+# read in files (file paths) using the data dir and subsetting by csv files only
+fp <- list.files(file_dir, full.names = TRUE, pattern = "*.csv")
+# can also subset by characters in file name (if other csv's present)
+#fp2 <- list.files(file_dir, full.names = TRUE, pattern = "Elora_RCS")
+# read data (individually)
+rd <- lapply(fp, fread, fill = TRUE)
+# combine data into one data table
+rcs <- rbindlist(rd)
+# convert datetime column from char to POSIxct class type
+rcs[, datetime := as.POSIXct(`Date/Time (UTC)`, format = "%Y-%m-%d %H:%M", tz = "UTC")]
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -205,6 +236,9 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
 
+###############################################################################
+#### Data Subsets ####
+
 # subset the wl dt by desired times
 wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
@@ -214,7 +248,13 @@ wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # subset pumping data by desired times
-cw_e4_sub <-cw_e4[time_utc %between% c(cw_pump_start1, cw_pump_end3)]
+cw_e4_sub <-cw_e4[datetime_utc %between% c(cw_pump_start1, cw_pump_end3)]
+
+# subset precipitation data by desired times
+rcs_sub <-rcs[datetime %between% c(cw_rain_start1, cw_rain_end3)]
+
+###############################################################################
+#### Plots ####
 
 # show subset in a plot
 # set 300 entries to 0, means looking at every 5 min data bc we record at 1sec
@@ -256,11 +296,12 @@ p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter",
 p_cw <- plot_ly(cw_e4_sub,
               x = ~time_utc,
               y = ~flow_hrly_avg,
-              name = "E4 Flow",
+              name = "2023 - E4 Flow",
               type = "scatter", mode = "lines")
 
-
+###############################################################################
 # t-profile plot layout
+
 # p1 <- plot_ly(wl_sub,
 #               x = ~datetime,
 #               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
@@ -345,6 +386,10 @@ p_cw <- plot_ly(cw_e4_sub,
 # y0 = 367.7,
 # y1 = 369.5,
 # xref = "x2"
+###############################################################################
+
+###############################################################################
+#### Subplots ####
 
 # display numerous plots in single view, customize plot features (axis titles, etc) using layout
 # to make axis values reverse: yaxis=list(autorange="reversed")
@@ -352,7 +397,7 @@ p_cw <- plot_ly(cw_e4_sub,
 # minor=list(nticks=50)
 # minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
 # shapes = list(line(tprof_start_well2))
-s <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
+s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
   layout(
     title = "ELR1-R1: Temporary Deployment", 
     xaxis = list(title = "Date and time",
@@ -390,6 +435,9 @@ s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
     legend = list(traceorder = "reversed")
   )
 
+###############################################################################
+#### Extract Processed Data ####
+
 # create DT for vertical head profiles
 #vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")] #old choice
 vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
@@ -397,6 +445,9 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:3
 # shorten table
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
 write.csv(vhp, "out/ELR1-R1_vhp_v2.csv")
+
+###############################################################################
+#### Data Table Manipulations ####
 
 # shorten the number of cols in wl_sub to only these 4
 wl_sub <- wl_sub[,list(datetime, value, baro, port)]
@@ -406,6 +457,7 @@ wl_wide <- data.table::dcast(wl_sub, datetime+baro~port)
 # using wl_wide dt, replace 1,2,etc with "port_01", etc
 setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
 
+###############################################################################
 #### Barometric Deconvolution Example ####
 
 # creating a formula
