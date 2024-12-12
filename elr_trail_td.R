@@ -223,9 +223,7 @@ wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 wl <- liner[, list(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
 
 # add port name to monitoring location
-################# can this get speed up? better way? ############################################################
-wl[, portloc := paste(port, monitoring_location, sep = " - ")]
-wl[, portloc := paste(portloc, "mbTOC")]
+wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 
 # calculate elevation of transducer monitoring point
 wl[, sensor_elev := elev1 - monitoring_location]
@@ -415,7 +413,7 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Pressure (m H20)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -427,7 +425,7 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Pressure (m asl)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -439,11 +437,58 @@ s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis3 = list(title = "Pressure (m asl)",
+    yaxis3 = list(title = "Head (m asl)",
                   range = c(367, 373.5)), # Δ Pressure (m H20)
     yaxis = list(title = "Pressure (m H20)",
                   range = c(14, 15.5)),
     yaxis4 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, rain together
+s4 <- subplot(s1, p_rain, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis3 = list(title = "Head (m asl)",
+                  range = c(367, 373.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)",
+                 range = c(14, 15.5)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, pump, rain together
+s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis3 = list(title = "Head (m asl)",
+                  range = c(367, 373.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)",
+                 range = c(14, 15.5)),
+    yaxis4 = list(title = "Precip (mm/hr)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, pump, rain together
+s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25, 0.25))%>%
+  layout(
+    title = "ELR1-R1: Temporary Deployment", 
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis3 = list(title = "Head (m asl)",
+                  range = c(367, 373.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)",
+                 range = c(14, 15.5)),
+    yaxis4 = list(title = "Precip (mm/hr)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
 
