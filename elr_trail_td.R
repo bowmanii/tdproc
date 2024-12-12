@@ -173,8 +173,11 @@ rd <- lapply(fp, fread, fill = TRUE)
 rcs <- rbindlist(rd)
 # convert datetime column from char to POSIxct class type
 rcs[, datetime := as.POSIXct(`Date/Time (UTC)`, format = "%Y-%m-%d %H:%M", tz = "UTC")]
-############################
-#############clean up dt cols!!!##############
+# remove empty cols
+rcs <- rcs[, .SD, .SDcols = !c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag",
+                                "Precip. Amount Flag", "Wind Dir Flag", "Wind Spd Flag", 
+                                "Visibility (km)", "Visibility Flag", "Stn Press Flag", 
+                                "Hmdx Flag", "Wind Chill Flag")]
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
