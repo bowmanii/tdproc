@@ -173,6 +173,8 @@ rd <- lapply(fp, fread, fill = TRUE)
 rcs <- rbindlist(rd)
 # convert datetime column from char to POSIxct class type
 rcs[, datetime := as.POSIXct(`Date/Time (UTC)`, format = "%Y-%m-%d %H:%M", tz = "UTC")]
+############################
+#############clean up dt cols!!!##############
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -248,10 +250,10 @@ wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # subset pumping data by desired times
-cw_e4_sub <-cw_e4[datetime_utc %between% c(cw_pump_start1, cw_pump_end3)]
+cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start1, cw_pump_end3)]
 
 # subset precipitation data by desired times
-rcs_sub <-rcs[datetime %between% c(cw_rain_start1, cw_rain_end3)]
+rcs_sub <- rcs[datetime %between% c(cw_rain_start1, cw_rain_end3)]
 
 ###############################################################################
 #### Plots ####
@@ -294,10 +296,17 @@ p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter",
 
 # plot E4 flow rate
 p_cw <- plot_ly(cw_e4_sub,
-              x = ~time_utc,
+              x = ~datetime_utc,
               y = ~flow_hrly_avg,
               name = "2023 - E4 Flow",
               type = "scatter", mode = "lines")
+
+# plot precipitation
+p_rain <- plot_ly(rcs_sub,
+                x = ~datetime,
+                y = ~`Precip. Amount (mm)`,
+                name = "2024 Precipitation",
+                type = "bar")
 
 ###############################################################################
 # t-profile plot layout
