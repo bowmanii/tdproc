@@ -4,7 +4,7 @@
 # Author: Isabella Bowman
 # Created: July 18 2024
 # Last updated: Dec 13, 2024
-# Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R1)
+# Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
 # https://github.com/jkennel
@@ -59,52 +59,57 @@ elev2 <- 379.612 + 0.530
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC")
 
 # sealed hole - first deployment
-seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
-seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
-#seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
-#seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
+#seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
+#seal_end_well1 <- as.POSIXct("2024-06-25 19:28:00", tz = "UTC")
+seal_start_well2 <- as.POSIXct("2024-04-05 15:43:00", tz = "UTC")
+seal_end_well2 <- as.POSIXct("2024-06-24 14:35:00", tz = "UTC")
 
 # sealed hole - second deployment
-seal_start_well3 <- as.POSIXct("2024-07-09 17:32:00", tz = "UTC")
-seal_end_well3 <- as.POSIXct("2024-07-29 15:03:00", tz = "UTC")
-#seal_start_well4 <- as.POSIXct("2024-06-25 21:49:00", tz = "UTC")
-#seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
+#seal_start_well3 <- as.POSIXct("2024-07-09 17:32:00", tz = "UTC")
+#seal_end_well3 <- as.POSIXct("2024-07-29 15:03:00", tz = "UTC")
+seal_start_well4 <- as.POSIXct("2024-06-25 21:49:00", tz = "UTC")
+seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
-cw_pump_start1 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
-cw_pump_end1 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
-#cw_pump_start2 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
-#cw_pump_end2 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
-cw_pump_start3 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
-cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
-#cw_pump_start4 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
-#cw_pump_end4 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
+#cw_pump_start1 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
+#cw_pump_end1 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
+cw_pump_start2 <- as.POSIXct("2023-04-05 15:00:00", tz = "UTC")
+cw_pump_end2 <- as.POSIXct("2023-06-24 15:00:00", tz = "UTC")
+#cw_pump_start3 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
+#cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
+cw_pump_start4 <- as.POSIXct("2023-06-25 21:00:00", tz = "UTC")
+cw_pump_end4 <- as.POSIXct("2023-10-18 16:00:00", tz = "UTC")
 
 # climate data
-cw_rain_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
-cw_rain_end1 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
-#cw_rain_start2 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
-#cw_rain_end2 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
-cw_rain_start3 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
-cw_rain_end3 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
-#cw_rain_start4 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
-#cw_rain_end4 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+#cw_rain_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
+#cw_rain_end1 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
+cw_rain_start2 <- as.POSIXct("2024-04-05 15:00:00", tz = "UTC")
+cw_rain_end2 <- as.POSIXct("2024-06-24 15:00:00", tz = "UTC")
+#cw_rain_start3 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
+#cw_rain_end3 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+cw_rain_start4 <- as.POSIXct("2024-06-25 21:00:00", tz = "UTC")
+cw_rain_end4 <- as.POSIXct("2024-10-18 16:00:00", tz = "UTC")
 
 # t-profile
 # for well1: estimated times, no notes taken?
-#tprof_start_well1 <- as.POSIXct("2024-06-26 14:41:00", tz = "UTC")
-#tprof_end_well1 <- as.POSIXct("2024-06-26 14:44:00", tz = "UTC")
-tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
-tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
+tprof_start_well1 <- as.POSIXct("2024-06-26 14:41:00", tz = "UTC")
+tprof_end_well1 <- as.POSIXct("2024-06-26 14:44:00", tz = "UTC")
+#tprof_start_well2 <- as.POSIXct("2024-06-25 17:04:00", tz = "UTC")
+#tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
+
+# Packer Testing
+# don't know when it ended
+pack_start_well1 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC")
+pack_end_well1 <- as.POSIXct("2024-08-23 04:00:00", tz = "UTC")
 
 ###############################################################################
 #### Data Manipulation ####
 
-# adjust for +34 min/-20 min before/after
-tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
-tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
-tprof_wt <- as.POSIXct("2024-06-25 16:37:00", tz = "UTC")
+# adjust for +41 min/-16 min before/after
+tprof_s <- as.POSIXct("2024-06-26 14:00:00", tz = "UTC")
+tprof_e <- as.POSIXct("2024-06-26 15:00:00", tz = "UTC")
+tprof_wt <- as.POSIXct("2024-06-26 14:39:00", tz = "UTC") #guess..no notes taken
 
 # set where data files are located
 file_dir <- "data/"
@@ -115,7 +120,7 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
 # redefine DT to only include for ELR1-R1
-loc <- loc[well == "ELR1-R1"]
+loc <- loc[well == "ELR1-R2"]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -189,7 +194,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:36)],
+pr <- rsk::read_rsk(fn[c(1:44)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -243,7 +248,7 @@ setkey(wl, datetime)
 #### Data Subsets ####
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
+wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well4)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 #write.csv(wl_sub, "out/ELR1-R1_20240405_20240625.csv") # this takes like 1 hr, wont open in excel
 
@@ -251,10 +256,10 @@ wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well3)]
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # subset pumping data by desired times
-cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start1, cw_pump_end3)]
+cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
 
 # subset precipitation data by desired times
-rcs_sub <- rcs[datetime %between% c(cw_rain_start1, cw_rain_end3)]
+rcs_sub <- rcs[datetime %between% c(cw_rain_start2, cw_rain_end4)]
 
 ###############################################################################
 #### Plots ####
