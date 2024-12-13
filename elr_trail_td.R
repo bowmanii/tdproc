@@ -477,7 +477,7 @@ s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
     yaxis = list(title = "Head (m asl)",
                   range = c(367, 373.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
-    yaxis3 = list(range = c(14.4, 15.5)),
+    #yaxis3 = list(range = c(14.4, 15.5)),
     yaxis4 = list(title = "Precip (mm)"),
     legend = list(traceorder = "reversed")
   )
