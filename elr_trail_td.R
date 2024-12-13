@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 12, 2024
+# Last updated: Dec 13, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells
 
 # https://github.com/bowmanii
@@ -309,6 +309,9 @@ p_rain <- plot_ly(rcs_sub,
                 name = "2024 Precipitation",
                 type = "bar")
 
+# find the 7 observations that plotly ignored (warning message)
+missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
+
 ###############################################################################
 # t-profile plot layout
 
@@ -413,7 +416,8 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)", 
+                 range = c(367, 373.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -421,73 +425,73 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
 # plot baro, liner, wl together
 s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
+    title = list(text = "ELR1-R1: Temporary Deployment", 
+                 y = 0.98,
+                 font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)", 
+                 range = c(367, 373.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(14.4, 15.5)),
     legend = list(traceorder = "reversed")
   )
 
 # plot wl, baro, liner, pump together
-s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
+s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.75, 0.25))%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis3 = list(title = "Head (m asl)",
-                  range = c(367, 373.5)), # Δ Pressure (m H20)
-    yaxis = list(title = "Pressure (m H20)",
-                  range = c(14, 15.5)),
+    title = list(text = "ELR1-R1: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis2 = list(title = "Date and time"),
+    yaxis3 = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis2 = list(title = "Pressure (m H20)"),
     yaxis4 = list(title = "Avg Flow (m3/hr)"),
-    legend = list(traceorder = "reversed")
-  )
-
-# plot wl, baro, liner, rain together
-s4 <- subplot(s1, p_rain, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2))%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis3 = list(title = "Head (m asl)",
-                  range = c(367, 373.5)), # Δ Pressure (m H20)
-    yaxis = list(title = "Pressure (m H20)",
-                 range = c(14, 15.5)),
-    yaxis4 = list(title = "Precip (mm)"),
-    legend = list(traceorder = "reversed")
-  )
-
-# plot wl, baro, liner, pump, rain together
-s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.5, 0.5))%>%
-  layout(
-    title = "ELR1-R1: Temporary Deployment", 
-    xaxis = list(title = "Date and time",
-                 nticks = 20,
-                 tickangle = -45),
-    yaxis3 = list(title = "Head (m asl)",
-                  range = c(367, 373.5)), # Δ Pressure (m H20)
-    yaxis = list(title = "Pressure (m H20)",
-                 range = c(14, 15.5)),
-    yaxis4 = list(title = "Precip (mm/hr)"),
-    yaxis5 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
 
 # plot wl, baro, liner, pump, rain together
 s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25, 0.25))%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
+    title = list(text = "ELR1-R1: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis3 = list(title = "Date and time"),
+    yaxis3 = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis = list(title = "Pressure (m H20)"),
+    yaxis4 = list(title = "Precip (mm/hr)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, rain together
+s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
+  layout(
+    title = list(text = "ELR1-R1: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis3 = list(title = "Head (m asl)",
+    yaxis = list(title = "Head (m asl)",
                   range = c(367, 373.5)), # Δ Pressure (m H20)
-    yaxis = list(title = "Pressure (m H20)",
-                 range = c(14, 15.5)),
-    yaxis4 = list(title = "Precip (mm/hr)"),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(14.4, 15.5)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, pump, rain together
+s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
+  layout(
+    title = list(text = "ELR1-R1: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis2 = list(title = "Date and time"),
+    yaxis4 = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis3 = list(title = "Pressure (m H20)"),
+    yaxis = list(title = "Precip (mm/hr)"),
     yaxis5 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
