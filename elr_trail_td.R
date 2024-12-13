@@ -274,6 +274,7 @@ p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro_m,
+              line = list(color = "#f08d38"),
               name = "Baro",
               type = "scatter", mode = "lines")
 
@@ -281,6 +282,7 @@ p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~liner_m,
+              line = list(color = "#4d9c45"),
               name = "Liner",
               type = "scatter", mode = "lines")
 
@@ -299,6 +301,7 @@ p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter",
 p_cw <- plot_ly(cw_e4_sub,
               x = ~datetime_utc,
               y = ~flow_hrly_avg,
+              line = list(color = "#37bac8"),
               name = "2023 - E4 Flow",
               type = "scatter", mode = "lines")
 
@@ -306,6 +309,7 @@ p_cw <- plot_ly(cw_e4_sub,
 p_rain <- plot_ly(rcs_sub,
                 x = ~datetime,
                 y = ~`Precip. Amount (mm)`,
+                marker = list(color = "#d488bd"),
                 name = "2024 Precipitation",
                 type = "bar")
 
@@ -477,7 +481,7 @@ s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
     yaxis = list(title = "Head (m asl)",
                   range = c(367, 373.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
-    #yaxis3 = list(range = c(14.4, 15.5)),
+    yaxis3 = list(range = c(14.4, 15.5)),
     yaxis4 = list(title = "Precip (mm)"),
     legend = list(traceorder = "reversed")
   )
