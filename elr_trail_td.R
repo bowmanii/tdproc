@@ -309,7 +309,7 @@ p_cw <- plot_ly(cw_e4_sub,
 p_rain <- plot_ly(rcs_sub,
                 x = ~datetime,
                 y = ~`Precip. Amount (mm)`,
-                marker = list(color = "#d488bd"),
+                marker = list(color = "#cc72b0"),
                 name = "2024 Precipitation",
                 type = "bar")
 

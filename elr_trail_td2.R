@@ -183,6 +183,10 @@ rcs <- rcs[, .SD, .SDcols = !c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag
                                 "Precip. Amount Flag", "Wind Dir Flag", "Wind Spd Flag", 
                                 "Visibility (km)", "Visibility Flag", "Stn Press Flag", 
                                 "Hmdx Flag", "Wind Chill Flag")]
+# clean up memory by setting rd to null
+rd <- NULL
+# clean up memory after - garbage collection
+gc()
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -194,7 +198,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(14)],
+pr <- rsk::read_rsk(fn[c(1:46)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -209,7 +213,9 @@ pr <- pr[variable %in% c("pressure")]
 # using it to clean up file name column!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
-
+# make loc, pr dt smaller before merging
+loc <- loc[, .SD, .SDcols = !c("site", "is_baro", "use")]
+pr <- pr[, .SD, .SDcols = !c("variable")]
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
@@ -221,6 +227,8 @@ liner <- pr[port == "liner"]
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
 
+# clean up memory - dt's no longer using
+loc <- NULL
 pr <- NULL
 
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
@@ -283,7 +291,7 @@ p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~baro_m,
-              line = list(color = "#f08d38"),
+              line = list(color = "#ee8326"),
               name = "Baro",
               type = "scatter", mode = "lines")
 
@@ -291,7 +299,7 @@ p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~liner_m,
-              line = list(color = "#4d9c45"),
+              line = list(color = "#a42c27"),
               name = "Liner",
               type = "scatter", mode = "lines")
 
@@ -318,7 +326,7 @@ p_cw <- plot_ly(cw_e4_sub,
 p_rain <- plot_ly(rcs_sub,
                 x = ~datetime,
                 y = ~`Precip. Amount (mm)`,
-                marker = list(color = "#d488bd"),
+                marker = list(color = "#cc72b0"),
                 name = "2024 Precipitation",
                 type = "bar")
 
@@ -425,12 +433,12 @@ missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 # shapes = list(line(tprof_start_well2))
 s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
   layout(
-    title = "ELR1-R1: Temporary Deployment", 
+    title = "ELR1-R2: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
     yaxis = list(title = "Head (m asl)", 
-                 range = c(367, 373.5)), # Δ Pressure (m H20)
+                 range = c(364, 375.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
     legend = list(traceorder = "reversed")
   )
@@ -438,23 +446,23 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
 # plot baro, liner, wl together
 s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment", 
+    title = list(text = "ELR1-R2: Temporary Deployment", 
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
     yaxis = list(title = "Head (m asl)", 
-                 range = c(367, 373.5)), # Δ Pressure (m H20)
+                 range = c(364, 375.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
-    yaxis3 = list(range = c(14.4, 15.5)),
+    yaxis3 = list(range = c(16, 17)),
     legend = list(traceorder = "reversed")
   )
 
 # plot wl, baro, liner, pump together
 s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.75, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment",
+    title = list(text = "ELR1-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis2 = list(title = "Date and time"),
@@ -467,7 +475,7 @@ s2 <- subplot(s1, p_cw, shareX = FALSE, nrows = 2, heights = c(0.75, 0.25))%>%
 # plot wl, baro, liner, pump, rain together
 s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment",
+    title = list(text = "ELR1-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis3 = list(title = "Date and time"),
@@ -481,16 +489,16 @@ s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment",
+    title = list(text = "ELR1-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
     yaxis = list(title = "Head (m asl)",
-                  range = c(367, 373.5)), # Δ Pressure (m H20)
+                  range = c(364, 375.5)), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
-    yaxis3 = list(range = c(14.4, 15.5)),
+    yaxis3 = list(range = c(16, 17)),
     yaxis4 = list(title = "Precip (mm)"),
     legend = list(traceorder = "reversed")
   )
@@ -498,7 +506,7 @@ s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
 # plot wl, baro, liner, pump, rain together
 s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment",
+    title = list(text = "ELR1-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis2 = list(title = "Date and time"),
