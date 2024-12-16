@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 13, 2024
+# Last updated: Dec 16, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -119,8 +119,8 @@ file_dir <- "data/"
 loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
-# redefine DT to only include for ELR1-R1
-loc <- loc[well == "ELR1-R2"]
+# redefine DT to only include for ELR1-R2 or baro serial #
+loc <- loc[well == "ELR1-R2" | serial == "213655"]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -194,7 +194,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:44)],
+pr <- rsk::read_rsk(fn[c(14)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -209,6 +209,7 @@ pr <- pr[variable %in% c("pressure")]
 # using it to clean up file name column!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
+
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
@@ -219,6 +220,9 @@ liner <- pr[port == "liner"]
 # create wl dt from pr subset using condition that excludes all ports equal to baros or liners
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
+
+pr <- NULL
+
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 # nomatch=0 = drops rows w/out a match
 # nomatch=NA = leftjoin, keeps all rows from left table, fills missing with NA
