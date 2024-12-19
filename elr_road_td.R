@@ -57,7 +57,7 @@ elev2 <- 402.013 + 0.600
 #blend_end_well2 <- as.POSIXct("2024-04-04 15:05:00", tz = "UTC")
 
 # sealed hole
-seal_start_well1 <- as.POSIXct("2024-04-04 19:22:00", tz = "UTC")
+seal_start_well1 <- as.POSIXct("2024-04-04 19:24:00", tz = "UTC")
 seal_end_well1 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
@@ -113,12 +113,12 @@ cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - l
 cw_e4[, datetime := force_tz(time, tzone = "America/Toronto")]
 # convert EDT/EST time zones to UTC, will auto adjust for time shifts
 cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
-# remove unnecessary columns
+# clean up dt - remove unnecessary columns
 cw_e4[, c("comments", "datetime") := NULL]
 # subset dataset (for memory and performance)
-cw_e4_sub <- cw_e4[, c(6, 5)]
-# subset pumping data by desired times
-cw_e4_sub <- cw_e4_sub[datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
+# keep desired columns and pump data by desired times
+cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
+# remove larger dt
 cw_e4 <- NULL # clean up memory
 
 # precipitation data - monthly files - Elora RCS
@@ -132,13 +132,15 @@ rd <- lapply(fp, fread, fill = TRUE)
 rcs <- rbindlist(rd)
 # convert datetime column from char to POSIxct class type
 rcs[, datetime := as.POSIXct(`Date/Time (UTC)`, format = "%Y-%m-%d %H:%M", tz = "UTC")]
-# remove empty cols
-rcs <- rcs[, .SD, .SDcols = !c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag",
-                               "Precip. Amount Flag", "Wind Dir Flag", "Wind Spd Flag", 
-                               "Visibility (km)", "Visibility Flag", "Stn Press Flag", 
-                               "Hmdx Flag", "Wind Chill Flag")]
-# clean up memory by setting rd to null
+# clean up dt - remove empty cols
+rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag", 
+        "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
+        "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
+# subset data by cols and times
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end1)]
+# remove placeholder dt, larger dt (for memory and performance)
 rd <- NULL
+rcs <- NULL
 # clean up memory after - garbage collection
 gc()
 
@@ -152,7 +154,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1,19:40)],
+pr <- rsk::read_rsk(fn[c(1:16)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -162,18 +164,16 @@ pr <- rsk::read_rsk(fn[c(1,19:40)],
 # subset pr to only include this exact string (match) in the variable column
 pr <- pr[variable %in% c("pressure")]
 
-# ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
-# basename wasn't working, text replacement, replace w empty string, looking in file_name
-# using it to clean up file name column!
-pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
+# clean up filename col by removing file paths
+pr[, file_name := basename(file_name)]
 
 # make loc, pr dt smaller before merging
-loc <- loc[, .SD, .SDcols = !c("site", "is_baro", "use")]
-pr <- pr[, .SD, .SDcols = !c("variable")]
-# make tables smaller before manipulations
+loc[, c("site", "is_baro", "use") := NULL]
+pr[, c("variable") := NULL]
+# make dt smaller - subset by seal time
 pr <- pr[datetime %between% c(seal_start_well1, seal_end_well1)]
 
-# bring in the loc DT to pr (13 cols), match data on file_name col
+# bring in the loc DT to pr (9 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
 # create baro dt from pr subset using condition when port is equal to baro_rbr
@@ -184,15 +184,19 @@ liner <- pr[port == "liner"]
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
 
-# clean up memory - dt's no longer using
+# clean up memory - dt's no longer using,, unneeded cols
+baro[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
+liner[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
 loc <- NULL
 pr <- NULL
 
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
-wl <- baro[, list(datetime, baro = value)][wl, on = "datetime", nomatch = 0]
+wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
-wl <- liner[, list(datetime, liner = value)][wl, on = "datetime", nomatch = 0]
-
+wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
+# clean up memory, dts no longer needed
+baro <- NULL
+liner <- NULL
 
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
@@ -205,8 +209,14 @@ wl[, baro_m := baro * dbar_to_m]
 wl[, liner_m := liner * dbar_to_m]
 wl[, value_m := value * dbar_to_m]
 
+# make new col in dt, calculate change in pressure
+wl[, value_adj := value_m - value_m[1], by = port]
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
+
+# clean up wl dt
+wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
+        "monitoring_location", "value") := NULL]
 
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
@@ -215,20 +225,15 @@ setkey(wl, datetime)
 #### Data Subsets ####
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+#wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
+# create new dt so don't have to change the code below :)
+wl_sub <- wl
+wl_sub <- wl_sub[datetime %between% c(seal_start_well1, seal_end_well1)]
+
+###### temp fix. this data is not baro corrected past Sept 26
+wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
+wl <- NULL
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
-
-# make new col in dt, calculation is pressure
-wl_sub[, value_adj := value_m - value_m[1], by = port]
-
-# shorten table
-wl_sub[, c("liner", "baro", "site", "serial", "is_baro", "use", "variable", "value") := NULL]
-
-# subset pumping data by desired times
-cw_e4_sub <- cw_e4_sub[datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
-
-# subset precipitation data by desired times
-rcs_sub <- rcs[datetime %between% c(cw_rain_start1, cw_rain_end1)]
 
 ###############################################################################
 #### Plots ####
@@ -258,19 +263,6 @@ p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               y = ~liner_m,
               line = list(color = "#a42c27"),
               name = "Liner",
-              type = "scatter", mode = "lines") %>%
-  layout(
-    yaxis = list(range = c(16.2,17))
-  )
-
-# merging baro and liner plots together on one
-#p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines")
-
-# plot E4 flow rate
-p5 <- plot_ly(cw_e4,
-              x = ~time,
-              y = ~flow2,
-              name = "E4 - Flow",
               type = "scatter", mode = "lines")
 
 # plot E4 flow rate
@@ -289,7 +281,7 @@ p_rain <- plot_ly(rcs_sub,
                   name = "2024 Precipitation",
                   type = "bar")
 
-# find the 7 observations that plotly ignored (warning message)
+# find the 7/8 observations that plotly ignored (warning message)
 missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 
 ###############################################################################
@@ -413,6 +405,39 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
                  tickangle = -45),
     yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
     yaxis2 = list(title = "Pressure (m H20)"),
+    legend = list(traceorder = "reversed")
+  )
+
+# plot wl, baro, liner, rain together
+s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head (m asl)"),
+                 #range = c(364, 375.5)), # Δ Pressure (m H20)
+    yaxis2 = list(title = "Pressure (m H20)"),
+    #yaxis3 = list(range = c(16, 17)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
+range = c(9.7,10.1)
+
+# plot wl, baro, liner, pump, rain together
+s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment",
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis2 = list(title = "Date and time"),
+    yaxis4 = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis3 = list(title = "Pressure (m H20)"),
+    yaxis = list(title = "Precip (mm/hr)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
 

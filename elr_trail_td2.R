@@ -208,10 +208,8 @@ pr <- rsk::read_rsk(fn[c(1:46)],
 # subset pr to only include this exact string (match) in the variable column
 pr <- pr[variable %in% c("pressure")]
 
-# ignore rows (no manipulation), in cols, beside the file_name col, add the following substitution:
-# basename wasn't working, text replacement, replace w empty string, looking in file_name
-# using it to clean up file name column!
-pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
+# clean up filename col by removing file paths
+pr[, file_name := basename(file_name)]
 
 # make loc, pr dt smaller before merging
 loc <- loc[, .SD, .SDcols = !c("site", "is_baro", "use")]
