@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 16, 2024
+# Last updated: Dec 17, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -106,7 +106,7 @@ pack_end_well1 <- as.POSIXct("2024-08-23 04:00:00", tz = "UTC")
 ###############################################################################
 #### Data Manipulation ####
 
-# adjust for +41 min/-16 min before/after
+# adjust for -41 min/+16 min before/after
 tprof_s <- as.POSIXct("2024-06-26 14:00:00", tz = "UTC")
 tprof_e <- as.POSIXct("2024-06-26 15:00:00", tz = "UTC")
 tprof_wt <- as.POSIXct("2024-06-26 14:39:00", tz = "UTC") #guess..no notes taken
@@ -216,6 +216,9 @@ pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 # make loc, pr dt smaller before merging
 loc <- loc[, .SD, .SDcols = !c("site", "is_baro", "use")]
 pr <- pr[, .SD, .SDcols = !c("variable")]
+# make tables smaller before manipulations
+pr <- pr[datetime %between% c(seal_start_well4, seal_end_well4)]
+
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
@@ -260,7 +263,7 @@ setkey(wl, datetime)
 #### Data Subsets ####
 
 # subset the wl dt by desired times
-wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well4)]
+wl_sub <- wl[datetime %between% c(seal_start_well4, seal_end_well4)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 #write.csv(wl_sub, "out/ELR1-R1_20240405_20240625.csv") # this takes like 1 hr, wont open in excel
 
@@ -268,10 +271,10 @@ wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well4)]
 wl_sub[, value_adj := value_m - value_m[1], by = port]
 
 # subset pumping data by desired times
-cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
+cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start4, cw_pump_end4)]
 
 # subset precipitation data by desired times
-rcs_sub <- rcs[datetime %between% c(cw_rain_start2, cw_rain_end4)]
+rcs_sub <- rcs[datetime %between% c(cw_rain_start4, cw_rain_end4)]
 
 ###############################################################################
 #### Plots ####

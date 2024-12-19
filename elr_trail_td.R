@@ -101,7 +101,7 @@ tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
 ###############################################################################
 #### Data Manipulation ####
 
-# adjust for +34 min/-20 min before/after
+# adjust for -34 min/+20 min before/after
 tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
 tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
 tprof_wt <- as.POSIXct("2024-06-25 16:37:00", tz = "UTC")
@@ -116,6 +116,8 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 setDT(loc)
 # redefine DT to only include for ELR1-R1
 loc <- loc[well == "ELR1-R1"]
+#loc <- loc[well %in% c("ELR1-R2", "ELR1-R1")]
+#loc <- loc[well == "ELR1-R2" | serial == "213655"]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -204,6 +206,10 @@ pr <- pr[variable %in% c("pressure")]
 # using it to clean up file name column!
 pr[, file_name := gsub('data/', '', file_name, fixed = TRUE)]
 
+# make loc, pr dt smaller before merging
+loc <- loc[, .SD, .SDcols = !c("site", "is_baro", "use")]
+pr <- pr[, .SD, .SDcols = !c("variable")]
+
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
@@ -214,6 +220,11 @@ liner <- pr[port == "liner"]
 # create wl dt from pr subset using condition that excludes all ports equal to baros or liners
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- pr[!port %in% c("baro_rbr", "liner", "rbr_diver")]
+
+# clean up memory - dt's no longer using
+loc <- NULL
+pr <- NULL
+
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 # nomatch=0 = drops rows w/out a match
 # nomatch=NA = leftjoin, keeps all rows from left table, fills missing with NA
