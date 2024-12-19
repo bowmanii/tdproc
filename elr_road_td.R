@@ -57,21 +57,21 @@ elev2 <- 402.013 + 0.600
 #blend_end_well2 <- as.POSIXct("2024-04-04 15:05:00", tz = "UTC")
 
 # sealed hole
-#seal_start_well1 <- as.POSIXct("2024-04-04 19:22:00", tz = "UTC")
-#seal_end_well1 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC")
+seal_start_well1 <- as.POSIXct("2024-04-04 19:22:00", tz = "UTC")
+seal_end_well1 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
-#cw_pump_start1 <- as.POSIXct("2023-04-04 19:00:00", tz = "UTC")
-#cw_pump_end1 <- as.POSIXct("2023-10-17 17:00:00", tz = "UTC")
+cw_pump_start1 <- as.POSIXct("2023-04-04 19:00:00", tz = "UTC")
+cw_pump_end1 <- as.POSIXct("2023-10-17 17:00:00", tz = "UTC")
 #cw_pump_start2 <- as.POSIXct("2023-04-04 15:00:00", tz = "UTC")
 #cw_pump_end2 <- as.POSIXct("2023-10-17 15:00:00", tz = "UTC")
 
 # climate data
-#cw_rain_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
-#cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
+cw_rain_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
+cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
 #cw_rain_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
 #cw_rain_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
 
@@ -113,6 +113,13 @@ cw_e4[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - l
 cw_e4[, datetime := force_tz(time, tzone = "America/Toronto")]
 # convert EDT/EST time zones to UTC, will auto adjust for time shifts
 cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
+# remove unnecessary columns
+cw_e4[, c("comments", "datetime") := NULL]
+# subset dataset (for memory and performance)
+cw_e4_sub <- cw_e4[, c(6, 5)]
+# subset pumping data by desired times
+cw_e4_sub <- cw_e4_sub[datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
+cw_e4 <- NULL # clean up memory
 
 # precipitation data - monthly files - Elora RCS
 # read in files (file paths) using the data dir and subsetting by csv files only
@@ -218,10 +225,10 @@ wl_sub[, value_adj := value_m - value_m[1], by = port]
 wl_sub[, c("liner", "baro", "site", "serial", "is_baro", "use", "variable", "value") := NULL]
 
 # subset pumping data by desired times
-cw_e4_sub <- cw_e4[datetime_utc %between% c(cw_pump_start4, cw_pump_end4)]
+cw_e4_sub <- cw_e4_sub[datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
 
 # subset precipitation data by desired times
-rcs_sub <- rcs[datetime %between% c(cw_rain_start4, cw_rain_end4)]
+rcs_sub <- rcs[datetime %between% c(cw_rain_start1, cw_rain_end1)]
 
 ###############################################################################
 #### Plots ####
