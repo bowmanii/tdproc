@@ -238,12 +238,12 @@ setkey(wl, datetime)
 #wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
 # create new dt so don't have to change the code below :)
 wl_sub <- wl
-test1 <- as.POSIXct("2024-04-04 12:00:00", tz = "UTC")
-test2 <- as.POSIXct("2024-04-05 12:00:00", tz = "UTC")
-wl_sub <- wl_sub[datetime %between% c(test1, test2)]
+#test1 <- as.POSIXct("2024-04-04 12:00:00", tz = "UTC")
+#test2 <- as.POSIXct("2024-04-05 12:00:00", tz = "UTC")
+#wl_sub <- wl_sub[datetime %between% c(test1, test2)]
 
 ###### temp fix. this data is not baro corrected past Sept 26
-wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
+#wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
 wl <- NULL
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 
@@ -397,7 +397,7 @@ missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 # shapes = list(line(tprof_start_well2))
 s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
   layout(
-    title = "ELR2-R1: Temporary Deployment", 
+    title = "ELR2-R2: Temporary Deployment", 
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
@@ -409,7 +409,7 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
 # plot baro, liner, wl together
 s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
-    title = list(text = "ELR2-R1: Temporary Deployment",
+    title = list(text = "ELR2-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -423,7 +423,7 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment",
+    title = list(text = "ELR2-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -437,12 +437,12 @@ s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
     legend = list(traceorder = "reversed")
   )
 
-range = c(9.7,10.1)
+#range = c(9.7,10.1)
 
 # plot wl, baro, liner, pump, rain together
 s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment",
+    title = list(text = "ELR2-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis2 = list(title = "Date and time"),

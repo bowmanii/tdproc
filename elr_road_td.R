@@ -423,7 +423,7 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment",
+    title = list(text = "ELR2-R1: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -442,7 +442,7 @@ range = c(9.7,10.1)
 # plot wl, baro, liner, pump, rain together
 s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment",
+    title = list(text = "ELR2-R1: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis2 = list(title = "Date and time"),
