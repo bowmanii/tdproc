@@ -3,7 +3,7 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Aug 22, 2024
-# Last updated: Dec 19, 2024
+# Last updated: Dec 20, 2024
 # Description: Processing temporary deployment data from 2024 on road wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -45,19 +45,19 @@ elev1 <- 402.491 + 0.210
 elev2 <- 402.013 + 0.600
 
 # air calibration
-#air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
-#air_end_well1 <- as.POSIXct("2024-04-02 18:36:00", tz = "UTC")
+air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
+air_end_well1 <- as.POSIXct("2024-04-02 18:36:00", tz = "UTC")
 #air_start_well2 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 #air_end_well2 <- as.POSIXct("2024-04-02 18:13:00", tz = "UTC")
 
 # OH monitoring
-#blend_start_well1 <- as.POSIXct("2024-04-02 18:50:00", tz = "UTC")
-#blend_end_well1 <- as.POSIXct("2024-04-04 17:45:00", tz = "UTC")
+blend_start_well1 <- as.POSIXct("2024-04-02 18:50:00", tz = "UTC")
+blend_end_well1 <- as.POSIXct("2024-04-04 17:45:00", tz = "UTC")
 #blend_start_well2 <- as.POSIXct("2024-04-02 18:26:00", tz = "UTC")
 #blend_end_well2 <- as.POSIXct("2024-04-04 15:05:00", tz = "UTC")
 
 # sealed hole
-seal_start_well1 <- as.POSIXct("2024-04-04 19:24:00", tz = "UTC")
+seal_start_well1 <- as.POSIXct("2024-04-04 20:22:00", tz = "UTC") # 19:22 install done, still recovering, shift by 1hr
 seal_end_well1 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
@@ -75,11 +75,17 @@ cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
 #cw_rain_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
 #cw_rain_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
 
-# flute liner installs/removals
+# flute liner installs/removals for ELR2-R1
 #flute_start_well1 <- as.POSIXct("2024-04-04 17:45:00", tz = "UTC") # install
 #flute_end_well1 <- as.POSIXct("2024-04-04 19:22:00", tz = "UTC") # install
-#flute_start_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC") # removal
-#flute_end_well2 <- as.POSIXct("2024-10-17 15:13:00", tz = "UTC") # removal
+#flute_start_well3 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC") # removal
+#flute_end_well3 <- as.POSIXct("2024-10-17 18:20:00", tz = "UTC") # removal
+
+# flute liner installs/removals for ELR2-R2
+#flute_start_well2 <- as.POSIXct("2024-04-04 15:05:00", tz = "UTC") # install
+#flute_end_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC") # install
+#flute_start_well4 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC") # removal
+#flute_end_well4 <- as.POSIXct("2024-10-17 15:13:00", tz = "UTC") # removal
 
 ###############################################################################
 #### Data Manipulation ####
@@ -98,7 +104,9 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
 # only include entries that read either well name from the well column
-loc <- loc[well == "ELR2-R1"]
+loc <- loc[well == "ELR2-R1" | port == "baro_rbr"]
+#loc <- loc[well == "ELR2-R1"]
+#loc <- loc[well %in% c("ELR2-R1", "ELR2-R2")]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -115,8 +123,7 @@ cw_e4[, datetime := force_tz(time, tzone = "America/Toronto")]
 cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
 # clean up dt - remove unnecessary columns
 cw_e4[, c("comments", "datetime") := NULL]
-# subset dataset (for memory and performance)
-# keep desired columns and pump data by desired times
+# subset data (for memory and performance), keep desired cols and pump data by desired times
 cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
 # remove larger dt
 cw_e4 <- NULL # clean up memory
@@ -138,7 +145,7 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
 rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end1)]
-# remove placeholder dt, larger dt (for memory and performance)
+# clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
 # clean up memory after - garbage collection
@@ -154,7 +161,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:16)],
+pr <- rsk::read_rsk(fn[c(2:18)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -191,6 +198,9 @@ loc <- NULL
 pr <- NULL
 
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
+# nomatch=0 = drops rows w/out a match
+# nomatch=NA = leftjoin, keeps all rows from left table, fills missing with NA
+# nomatch=-1 = returns error when no match, join error
 wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
 wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
@@ -209,7 +219,7 @@ wl[, baro_m := baro * dbar_to_m]
 wl[, liner_m := liner * dbar_to_m]
 wl[, value_m := value * dbar_to_m]
 
-# make new col in dt, calculate change in pressure
+# make new col in dt, calculation is pressure - the first pressure entry (2024-0-0 ::00)
 wl[, value_adj := value_m - value_m[1], by = port]
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
@@ -228,7 +238,9 @@ setkey(wl, datetime)
 #wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
 # create new dt so don't have to change the code below :)
 wl_sub <- wl
-wl_sub <- wl_sub[datetime %between% c(seal_start_well1, seal_end_well1)]
+test1 <- as.POSIXct("2024-04-04 12:00:00", tz = "UTC")
+test2 <- as.POSIXct("2024-04-05 12:00:00", tz = "UTC")
+wl_sub <- wl_sub[datetime %between% c(test1, test2)]
 
 ###### temp fix. this data is not baro corrected past Sept 26
 wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
@@ -397,7 +409,7 @@ s0 <- subplot(p_wl, p_baro, shareX = TRUE, nrows = 2)%>%
 # plot baro, liner, wl together
 s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 0.15, 0.15))%>%
   layout(
-    title = list("ELR2-R1: Temporary Deployment",
+    title = list(text = "ELR2-R1: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
