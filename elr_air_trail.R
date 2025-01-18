@@ -142,20 +142,23 @@ setkey(air, datetime)
 #### Plots ####
 
 # locate all ports that are not baro from port col
-ports <- unique(air$port[air$port != "baro_rbr"])
+#ports <- unique(air$port[air$port != "baro_rbr"])
+ports <- unique(air$port[!air$port %in% c("baro_rbr", "liner")])
 
 # assign custom colour to baro, all other ports follow viridis
 # make sure to match viridis # to # of ports for each well
 # viridis(#) = # of colours needed in the colour palette
-#custom_colors <- c("baro_rbr" = "#ee8326", setNames(viridis(16), ports))
+custom_colors <- c("baro_rbr" = "#ee8326", "liner" = "#a42c27", setNames(viridis(16), ports))
 
 # alternate option
 # have it set to auto calculate # of colours based on # of ports
-custom_colors <- c("baro_rbr" = "#ee8326", setNames(viridis(16)[1:length(ports)], ports))
+# don't do this! no good
+#custom_colors <- c("baro_rbr" = "#ee8326", setNames(viridis(20)[1:length(ports)], ports))
 
-p_air <- plot_ly(air,
+# depending on how long period is, may need to subset data
+p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
                  x = ~datetime,
-                 y = ~value_adj, #or value, value_adj, value_m, etc
+                 y = ~value, #or value, value_adj, value_m, etc
                  color = ~port,
                  colors = custom_colors,
                  name = ~portloc,
@@ -167,7 +170,7 @@ p_air <- plot_ly(air,
     xaxis = list(title = "Date and time",
                  nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
+    yaxis = list(title = "Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 
