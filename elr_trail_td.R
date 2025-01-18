@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Dec 20, 2024
+# Last updated: Jan 17, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R1)
 
 # https://github.com/bowmanii
@@ -45,22 +45,24 @@ elev1 <- 377.540 + 0.580
 elev2 <- 379.612 + 0.530
 
 # air calibration
-#air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R1
+air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R1
 #air_end_well1 <- as.POSIXct("2024-04-02 16:01:00", tz = "UTC") # R1-R1
+# trim the interval (excludes data from transporting)
+air_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R1
 #air_start_well2 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R2
 #air_end_well2 <- as.POSIXct("2024-04-02 16:54:00", tz = "UTC") # R1-R2
-#air_start_well3 <- as.POSIXct("2024-06-26 13:00:00", tz = "UTC") # R1-R1
-#air_end_well3 <- as.POSIXct("2024-07-09 14:50:00", tz = "UTC") # R1-R1
+air_start_well3 <- as.POSIXct("2024-06-26 13:00:00", tz = "UTC") # R1-R1
+air_end_well3 <- as.POSIXct("2024-07-09 14:50:00", tz = "UTC") # R1-R1
 #air_start_well4 <- as.POSIXct("2024-06-25 13:00:00", tz = "UTC") # R1-R2
 #air_end_well4 <- as.POSIXct("2024-06-25 19:52:00", tz = "UTC") # R1-R2
 
 # OH monitoring (blended head)
-#blend_start_well1 <- as.POSIXct("2024-04-02 16:26:00", tz = "UTC") # R1-R1
-#blend_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
+blend_start_well1 <- as.POSIXct("2024-04-02 16:26:00", tz = "UTC") # R1-R1
+blend_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
 #blend_start_well2 <- as.POSIXct("2024-04-02 17:12:00", tz = "UTC") # R1-R2
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC") # R1-R2
-#blend_start_well3 <- as.POSIXct("2024-07-29 17:35:00", tz = "UTC") # R1-R1
-#blend_end_well3 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC") # R1-R1
+blend_start_well3 <- as.POSIXct("2024-07-29 17:35:00", tz = "UTC") # R1-R1
+blend_end_well3 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC") # R1-R1
 
 # sealed hole - first deployment
 seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
@@ -128,16 +130,16 @@ tprof_end_well2 <- as.POSIXct("2024-06-25 17:10:00", tz = "UTC")
 
 # Packer Testing
 # don't know when it ended
-pack_start_well1 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC")
-pack_end_well1 <- as.POSIXct("2024-08-23 04:00:00", tz = "UTC")
+#pack_start_well1 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC")
+#pack_end_well1 <- as.POSIXct("2024-08-23 04:00:00", tz = "UTC")
 
 ###############################################################################
 #### Data Manipulation ####
 
 # adjust for -34 min/+20 min before/after
-tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
-tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
-tprof_wt <- as.POSIXct("2024-06-25 16:37:00", tz = "UTC")
+#tprof_s <- as.POSIXct("2024-06-25 16:30:00", tz = "UTC")
+#tprof_e <- as.POSIXct("2024-06-25 17:30:00", tz = "UTC")
+#tprof_wt <- as.POSIXct("2024-06-25 16:37:00", tz = "UTC")
 
 # set where data files are located
 file_dir <- "data/"
@@ -256,7 +258,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(seal_start_well1, seal_end_well3)]
+pr <- pr[datetime %between% c(air_start_well1, air_end_well1)]
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -272,8 +274,8 @@ wl <- pr[!port %in% c("baro_rbr", "liner")]
 # clean up memory - dt's no longer using,, unneeded cols
 baro[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
 liner[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
-loc <- NULL
-pr <- NULL
+#loc <- NULL
+#pr <- NULL
 
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 # nomatch=0 = drops rows w/out a match
@@ -283,8 +285,8 @@ wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
 wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
 # clean up memory, dts no longer needed
-baro <- NULL
-liner <- NULL
+#baro <- NULL
+#liner <- NULL
 
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
@@ -343,11 +345,11 @@ p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
 
 # plot baro
 p_baro <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
-              x = ~datetime,
-              y = ~baro_m,
-              line = list(color = "#ee8326"),
-              name = "Baro",
-              type = "scatter", mode = "lines")
+                  x = ~datetime,
+                  y = ~baro_m,
+                  line = list(color = "#ee8326"),
+                  name = "Baro",
+                  type = "scatter", mode = "lines")
 
 # plot liner
 p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
