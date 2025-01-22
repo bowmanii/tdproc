@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Jan 17, 2025
+# Last updated: Jan 20, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R1)
 
 # https://github.com/bowmanii
@@ -46,9 +46,7 @@ elev2 <- 379.612 + 0.530
 
 # air calibration
 air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R1
-#air_end_well1 <- as.POSIXct("2024-04-02 16:01:00", tz = "UTC") # R1-R1
-# trim the interval (excludes data from transporting)
-air_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R1
+air_end_well1 <- as.POSIXct("2024-04-02 16:01:00", tz = "UTC") # R1-R1
 #air_start_well2 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R2
 #air_end_well2 <- as.POSIXct("2024-04-02 16:54:00", tz = "UTC") # R1-R2
 air_start_well3 <- as.POSIXct("2024-06-26 13:00:00", tz = "UTC") # R1-R1
