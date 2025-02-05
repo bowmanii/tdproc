@@ -3,7 +3,7 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Dec 20, 2024
-# Last updated: Dec 20, 2024
+# Last updated: Feb 05, 2024
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R2)
 
 # https://github.com/bowmanii
@@ -212,7 +212,7 @@ liner <- NULL
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 
 # calculate elevation of transducer monitoring point
-wl[, sensor_elev := elev1 - monitoring_location]
+wl[, sensor_elev := elev2 - monitoring_location]
 
 # convert all pressures to m H20
 wl[, baro_m := baro * dbar_to_m]

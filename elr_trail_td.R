@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Jan 20, 2025
+# Last updated: Feb 05, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R1)
 
 # https://github.com/bowmanii
@@ -59,8 +59,6 @@ blend_start_well1 <- as.POSIXct("2024-04-02 16:26:00", tz = "UTC") # R1-R1
 blend_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
 #blend_start_well2 <- as.POSIXct("2024-04-02 17:12:00", tz = "UTC") # R1-R2
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC") # R1-R2
-blend_start_well3 <- as.POSIXct("2024-07-29 17:35:00", tz = "UTC") # R1-R1
-blend_end_well3 <- as.POSIXct("2024-08-09 18:20:00", tz = "UTC") # R1-R1
 
 # sealed hole - first deployment
 seal_start_well1 <- as.POSIXct("2024-04-05 18:33:00", tz = "UTC")
@@ -337,7 +335,7 @@ p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~head_masl, #or head_masl, or value_m, value_adj, etc
               color = ~port,
-              colors = viridis(20),
+              colors = viridis(16),
               name = ~portloc,
               type = "scatter", mode = "lines")
 
@@ -358,7 +356,11 @@ p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               type = "scatter", mode = "lines")
 
 # merging baro and liner plots together on one
-p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
+p_baro_liner <- add_trace(p_liner, 
+                          x = ~datetime, 
+                          y = ~baro_m, 
+                          name = "Baro",
+                          type = "scatter", mode = "lines") %>%
   layout(
     title = "Liner Vs. Baro Response", 
     xaxis = list(title = "Date and time",
@@ -394,7 +396,7 @@ missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 #               x = ~datetime,
 #               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
 #               color = ~port,
-#               colors = viridis(20),
+#               colors = viridis(16),
 #               name = ~portloc,
 #               type = "scatter", mode = "lines")%>%
 #   layout(

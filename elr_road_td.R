@@ -3,8 +3,8 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Aug 22, 2024
-# Last updated: Dec 20, 2024
-# Description: Processing temporary deployment data from 2024 on road wells (ELR1-R2)
+# Last updated: Feb 05, 2024
+# Description: Processing temporary deployment data from 2024 on road wells (ELR2-R1)
 
 # https://github.com/bowmanii
 # https://github.com/jkennel
@@ -257,7 +257,7 @@ p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~head_masl, #or head_masl, or value_m, value_adj, etc
               color = ~port,
-              colors = viridis(20),
+              colors = viridis(14),
               name = ~portloc,
               type = "scatter", mode = "lines")
 
@@ -303,7 +303,7 @@ missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 #               x = ~datetime,
 #               y = ~value_adj, #or head_masl, or value_m, value_adj, etc
 #               color = ~port,
-#               colors = viridis(20),
+#               colors = viridis(14),
 #               name = ~portloc,
 #               type = "scatter", mode = "lines")%>%
 #   layout(
