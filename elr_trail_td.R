@@ -3,8 +3,8 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 05, 2025
-# Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R1)
+# Last updated: Feb 11, 2025
+# Description: Processing temporary deployment data from 2024 on trail wells - ELR1-R1
 
 # https://github.com/bowmanii
 # https://github.com/jkennel
@@ -42,7 +42,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 # well elevation (m amsl)
 elev1 <- 377.540 + 0.580
-elev2 <- 379.612 + 0.530
+#elev2 <- 379.612 + 0.530
 
 # air calibration
 air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC") # R1-R1
@@ -166,7 +166,7 @@ cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
 # clean up dt - remove unnecessary columns
 cw_e4[, c("comments", "datetime") := NULL]
 # subset data (for memory and performance), keep desired cols and pump data by desired times
-cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start1, cw_pump_end3)]
+cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start1, cw_pump_end1)]
 # remove larger dt
 cw_e4 <- NULL # clean up memory
 
@@ -217,12 +217,18 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
-rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end3)]
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end1)]
 # clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
 # clean up memory after - garbage collection
 gc()
+
+# get correction factors into dt
+cf_air <- read.csv("./out/ELR1-R1_air_cf_use.csv") # air correction factors
+setDT(cf_air)
+cf_man <- read.csv("./out/ELR1-R1_blend_cf2_use.csv") # manual wl correction factors
+setDT(cf_man)
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -254,7 +260,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(air_start_well1, air_end_well1)]
+pr <- pr[datetime %between% c(seal_start_well1, seal_end_well1)]
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -280,6 +286,10 @@ liner[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_l
 wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
 wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
+# bring in correction factors
+wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
+wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
+
 # clean up memory, dts no longer needed
 #baro <- NULL
 #liner <- NULL
@@ -299,6 +309,9 @@ wl[, value_m := value * dbar_to_m]
 wl[, value_adj := value_m - value_m[1], by = port]
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
+# correction factors
+wl[, head_masl_cf_air := head_masl + cf_air]
+wl[, head_masl_cf_man := head_masl + cf_man]
 
 # clean up wl dt
 wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
@@ -333,7 +346,7 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl_cf_air, #or head_masl, or value_m, value_adj, head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(16),
               name = ~portloc,
@@ -355,6 +368,22 @@ p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               name = "Liner",
               type = "scatter", mode = "lines")
 
+# plot precipitation
+p_rain <- plot_ly(rcs_sub,
+                  x = ~datetime,
+                  y = ~`Precip. Amount (mm)`,
+                  marker = list(color = "#cc72b0"),
+                  name = "2024 Precipitation",
+                  type = "bar")
+
+# plot E4 flow rate
+p_cw <- plot_ly(cw_e4_sub,
+                x = ~datetime_utc,
+                y = ~flow_hrly_avg,
+                line = list(color = "#37bac8"),
+                name = "2023 - E4 Flow",
+                type = "scatter", mode = "lines")
+
 # merging baro and liner plots together on one
 p_baro_liner <- add_trace(p_liner, 
                           x = ~datetime, 
@@ -369,22 +398,6 @@ p_baro_liner <- add_trace(p_liner,
     yaxis = list(title = "Pressure (m H20)"),
     legend = list(trace0 = "Liner", trace1 = "Baro")
   )
-
-# plot E4 flow rate
-p_cw <- plot_ly(cw_e4_sub,
-              x = ~datetime_utc,
-              y = ~flow_hrly_avg,
-              line = list(color = "#37bac8"),
-              name = "2023 - E4 Flow",
-              type = "scatter", mode = "lines")
-
-# plot precipitation
-p_rain <- plot_ly(rcs_sub,
-                x = ~datetime,
-                y = ~`Precip. Amount (mm)`,
-                marker = list(color = "#cc72b0"),
-                name = "2024 Precipitation",
-                type = "bar")
 
 # find the 7/8 observations that plotly ignored (warning message)
 missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
