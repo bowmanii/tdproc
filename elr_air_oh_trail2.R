@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Feb 05, 2025
-# Last updated: Feb 05, 2025
+# Last updated: Feb 07, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R2
 
 # https://github.com/bowmanii
@@ -90,7 +90,8 @@ setDT(loc)
 # redefine DT to only include for ELR1-R1
 #loc <- loc[well == "ELR1-R1"]
 #loc <- loc[well %in% c("ELR1-R1", "ELR1-R2")]
-loc <- loc[well == "ELR1-R2" | serial == "213655"]
+#loc <- loc[well == "ELR1-R2" | serial == "213655"]
+loc <- loc[serial %in% c("213655", "213650", "82215", "82209")]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -104,7 +105,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:46)],
+pr <- rsk::read_rsk(fn[c(1:7)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -124,7 +125,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(blend_start_well2, blend_end_well2)] # air, airtrim, blend
+pr <- pr[datetime %between% c(air_start_well3, air_end_well4)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -133,7 +134,7 @@ pr <- loc[pr, on = "file_name"]
 # create a new dt to perform further manipulations
 air <- pr
 # clean up unneeded cols
-air[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
+air[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
 air[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 # calculate elevation of transducer monitoring point
@@ -153,7 +154,7 @@ liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 # clean up unneeded cols
-wl[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
+wl[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 # add baro to dt
@@ -254,6 +255,32 @@ s1 <- subplot(p_wl, p_baro_liner, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2
                  tickangle = -45),
     yaxis = list(title = "Hydraulic Head (masl)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
     yaxis2 = list(title = "Pressure (m H20)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
+    legend = list(traceorder = "reversed")
+  )
+
+# compare liners, baros
+custom_colors <- c("213650" = "#ee8326", "213655" = "#a42c27", "82215" = "#3fb195", "82209" = "#953eb1")
+
+# ELR1-R1 baro s/n: 213655, ELR2-R1 baro s/n: 213650
+# ELR1-R1 liner s/n: 82215, ELR1-R2 liner s/n: 82209
+# ELR2-R1 liner s/n: 203042, ELR2-R2 liner s/n: 82210
+
+# [as.numeric(datetime) %% 10 == 0]
+p_bl <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
+                x = ~datetime,
+                y = ~value_adj, #or value, value_adj, value_m, etc
+                color = ~serial,
+                colors = custom_colors,
+                name = ~serial,
+                type = "scatter", mode = "lines") %>%
+  layout(
+    title = list(text = "Trail", # Air, Open Hole
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 

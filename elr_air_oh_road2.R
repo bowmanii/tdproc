@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Jan 21, 2025
-# Last updated: Feb 05, 2025
+# Last updated: Feb 07, 2025
 # Description: Processing air monitoring period for trail wells - ELR2-R2
 
 # https://github.com/bowmanii
@@ -45,8 +45,8 @@ elev1 <- 402.491 + 0.210
 elev2 <- 402.013 + 0.600
 
 # air calibration
-#air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
-#air_end_well1 <- as.POSIXct("2024-04-02 18:36:00", tz = "UTC")
+air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
+air_end_well1 <- as.POSIXct("2024-04-02 18:36:00", tz = "UTC")
 air_start_well2 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 air_end_well2 <- as.POSIXct("2024-04-02 18:13:00", tz = "UTC")
 
@@ -74,10 +74,12 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
 # only include entries that read either well name from the well column
-loc <- loc[well == "ELR2-R2" | port == "baro_rbr"]
-#loc <- loc[well == "ELR2-R1" | serial == "213655"]
+#loc <- loc[well == "ELR2-R2" | port == "baro_rbr"]
+#loc <- loc[well == "ELR2-R2" | serial == "213650"] # road baro
+#loc <- loc[well == "ELR2-R2" | serial == "213655"] # trail baro
 #loc <- loc[well == "ELR2-R1"]
 #loc <- loc[well %in% c("ELR2-R1", "ELR2-R2")]
+loc <- loc[serial %in% c("213655", "213650", "203042", "82210")]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -91,7 +93,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:2, 4:11, 13:24)],
+pr <- rsk::read_rsk(fn[c(1:5)], # exclude port 08, defective
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -111,7 +113,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(airtrim_start_well2, airtrim_end_well2)] # air, airtrim, blend
+pr <- pr[datetime %between% c(air_start_well1, air_end_well2)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -120,7 +122,7 @@ pr <- loc[pr, on = "file_name"]
 # create a new dt to perform further manipulations
 air <- pr
 # clean up unneeded cols
-air[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
+air[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
 air[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 # calculate elevation of transducer monitoring point
@@ -140,7 +142,7 @@ liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 # clean up unneeded cols
-wl[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
+wl[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
 # add baro to dt
@@ -169,7 +171,7 @@ ports <- unique(air$port[!air$port %in% c("baro_rbr", "liner")])
 #ports <- unique(air$port[!air$port %in% c("baro_rbr1", "baro_rbr2", "liner")])
 
 # assign custom colour to baro, all other ports follow viridis
-# make sure to match viridis # to # of ports for each well (16, 21, 14, 20)
+# make sure to match viridis # to # of ports for each well (16, 21, 14, 20/19)
 # viridis(#) = # of colours needed in the colour palette
 custom_colors <- c("baro_rbr" = "#ee8326", "liner" = "#a42c27", setNames(viridis(19), ports))
 
@@ -246,6 +248,32 @@ s1 <- subplot(p_wl, p_baro_liner, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2
                  tickangle = -45),
     yaxis = list(title = "Hydraulic Head (masl)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
     yaxis2 = list(title = "Pressure (m H20)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
+    legend = list(traceorder = "reversed")
+  )
+
+# compare liners, baros
+custom_colors <- c("213650" = "#ee8326", "213655" = "#a42c27", "203042" = "#3fb195", "82210" = "#953eb1")
+
+# ELR1-R1 baro s/n: 213655, ELR2-R1 baro s/n: 213650
+# ELR1-R1 liner s/n: 82215, ELR1-R2 liner s/n: 82209
+# ELR2-R1 liner s/n: 203042, ELR2-R2 liner s/n: 82210
+
+# [as.numeric(datetime) %% 10 == 0]
+p_bl <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
+                 x = ~datetime,
+                 y = ~value_adj, #or value, value_adj, value_m, etc
+                 color = ~serial,
+                 colors = custom_colors,
+                 name = ~serial,
+                 type = "scatter", mode = "lines") %>%
+  layout(
+    title = list(text = "Road", # Air, Open Hole
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 

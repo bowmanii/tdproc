@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Feb 05, 2025
-# Last updated: Feb 05, 2025
+# Last updated: Feb 06, 2025
 # Description: Processing air monitoring period for trail wells - ELR2-R1
 
 # https://github.com/bowmanii
@@ -91,7 +91,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:2, 4:11, 13:24)],
+pr <- rsk::read_rsk(fn[c(1:2, 4:18)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -111,7 +111,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(airtrim_start_well1, airtrim_end_well1)] # air, airtrim, blend
+pr <- pr[datetime %between% c(blend_start_well1, blend_end_well1)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
