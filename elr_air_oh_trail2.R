@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Feb 05, 2025
-# Last updated: Feb 07, 2025
+# Last updated: Feb 13, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R2
 
 # https://github.com/bowmanii
@@ -41,7 +41,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #well2 <- "ELR1-R2"
 
 # well elevation (m amsl)
-elev1 <- 377.540 + 0.580
+#elev1 <- 377.540 + 0.580
 elev2 <- 379.612 + 0.530
 
 # air calibration
@@ -59,6 +59,10 @@ air_end_well4 <- as.POSIXct("2024-06-25 19:52:00", tz = "UTC") # R1-R2
 #blend_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
 blend_start_well2 <- as.POSIXct("2024-04-02 17:12:00", tz = "UTC") # R1-R2
 blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC") # R1-R2
+#blend_start_well3 <- as.POSIXct("2024-07-09 15:22:00", tz = "UTC") # R1-R1
+#blend_end_well3 <- as.POSIXct("2024-07-09 16:39:00", tz = "UTC") # R1-R1
+blend_start_well4 <- as.POSIXct("2024-06-25 20:32:00", tz = "UTC") # R1-R2
+blend_end_well4 <- as.POSIXct("2024-06-25 21:18:00", tz = "UTC") # R1-R2
 
 ###############################################################################
 #### Data Manipulation ####
@@ -73,11 +77,29 @@ airtrim_end_well2 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R2
 airtrim_start_well4 <- as.POSIXct("2024-06-25 13:00:00", tz = "UTC") # R1-R2
 airtrim_end_well4 <- as.POSIXct("2024-06-25 18:45:00", tz = "UTC") # R1-R2
 
-# trim blended calibration periods (to account for erroneous data)
-#blendtrim_start_well1 <- as.POSIXct("2024-04-02 16:26:00", tz = "UTC") # R1-R1
-#blendtrim_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
-blendtrim_start_well2 <- as.POSIXct("2024-04-02 17:12:00", tz = "UTC") # R1-R2
-blendtrim_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC") # R1-R2
+# interval for air average
+# take ~10 min where late time is stable, average baro
+airavg_start_well2 <- as.POSIXct("2024-04-02 14:20:00", tz = "UTC") # R1-R1
+airavg_end_well2 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R1
+airavg_start_well4 <- as.POSIXct("2024-06-25 14:50:00", tz = "UTC") # R1-R1
+airavg_end_well4 <- as.POSIXct("2024-06-25 15:00:00", tz = "UTC") # R1-R1
+# baro average (Apr 2 14:20 - 14:30, Jul 9 11:40 - 11:50)
+bavg2 <- 
+bavg4 <- 
+
+# for blended calibration
+# manual wl Apr 05 @ 14:19 = 8.546 mbtoc, 371.596 masl
+manual_well2 <- as.POSIXct("2024-04-05 14:19:00", tz = "UTC") # R1-R1
+manual_wl2 <- 371.596
+# take +/- 1 min on either side of manual dtw, average
+blendavg_start_well2 <- as.POSIXct("2024-04-05 14:18:00", tz = "UTC") # R1-R1
+blendavg_end_well2 <- as.POSIXct("2024-04-05 14:20:00", tz = "UTC") # R1-R1
+# manual wl Jun 25 @ 20:52 = 11.472 mbtoc, 368.670 masl
+manual_well4 <- as.POSIXct("2024-06-25 20:52:00", tz = "UTC") # R1-R1
+manual_wl4 <- 368.670
+# take +/- 1 min on either side of manual dtw, average
+blendavg_start_well4 <- as.POSIXct("2024-06-25 20:51:00", tz = "UTC") # R1-R1
+blendavg_end_well4 <- as.POSIXct("2024-06-25 20:53:00", tz = "UTC") # R1-R1
 
 # set where data files are located
 file_dir <- "data/"
@@ -90,8 +112,8 @@ setDT(loc)
 # redefine DT to only include for ELR1-R1
 #loc <- loc[well == "ELR1-R1"]
 #loc <- loc[well %in% c("ELR1-R1", "ELR1-R2")]
-#loc <- loc[well == "ELR1-R2" | serial == "213655"]
-loc <- loc[serial %in% c("213655", "213650", "82215", "82209")]
+loc <- loc[well == "ELR1-R2" | serial == "213655"]
+#loc <- loc[serial %in% c("213655", "213650", "82215", "82209")]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
@@ -105,7 +127,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:7)],
+pr <- rsk::read_rsk(fn[c(1:46)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -125,14 +147,17 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(air_start_well3, air_end_well4)] # air, airtrim, blend
+pr <- pr[datetime %between% c(air_start_well4, air_end_well4)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
+#### air monitoring period ####
+
 # dt to process all ports together (keep baro,liner as rows)
 # create a new dt to perform further manipulations
-air <- pr
+#air <- pr
+air <- pr[datetime %between% c(air_start_well4, air_end_well4)] #airtrim, airavg
 # clean up unneeded cols
 air[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
@@ -146,6 +171,39 @@ air[, value_m := value * dbar_to_m]
 # sorts wl data table by date time (ascending order)
 setkey(air, datetime)
 
+
+
+
+
+
+#### manipulations for air correction factor ####
+
+# find baro average
+#vavg <- mean(pr$value)
+#ans <- air[, .(mean(value)), by = port]
+
+# find averages 
+air[, avg := mean(value), by = port]
+
+# calculate correction factor (cf) for each transducer from baro avg
+#air[, cf := bavg - avg] # dbar
+air[, cf := (bavg2 - avg) * dbar_to_m]
+air_sub <- air[, !c("well", "screen_top", "screen_bottom", "value")]
+air_short <- unique(air_sub, by = "port")
+write.csv(air_short, "out/ELR1-R2_air_cf_td1.csv")
+
+#dont think i need this in this code
+# # corrected pressure values
+# air <- cf_air[, .(file_name, cf = cf)][air, on = "file_name"]
+# air[, value_cf := value + cf]
+# air[, value_cf_m := value_cf * dbar_to_m]
+
+
+
+
+
+#### open hole period ####
+
 # dt to proccess ports separately from baro,liner (pull in as cols)
 # create baro dt from pr subset using condition when port is equal to baro_rbr
 baro <- pr[port == "baro_rbr"]
@@ -153,6 +211,9 @@ baro <- pr[port == "baro_rbr"]
 liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
+#wl <- wl[datetime == manual_well1]
+wl <- wl[datetime %between% c(blend_start_well2, blend_end_well2)]
+
 # clean up unneeded cols
 wl[, c("well", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
@@ -174,6 +235,37 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
 
+
+
+
+#### manipulations for manual correction factor ####
+
+# get average for each port
+#ans <- wl[, .(mean(value)), by = port] # one way to do it
+wl[, avg := mean(value), by = port] # better way to keep result in dt as col
+wl[, avg_baro := mean(baro), by = port]
+wl[, avg_liner := mean(liner), by = port]
+wl[, avg_m := avg *dbar_to_m]
+wl[, avg_head := sensor_elev + (avg_m - avg_baro)]
+
+# calculate correction factor (cf) for each transducer from manual wl
+wl[, cf := manual_wl2 - avg_head] # manual_wl1, manual_wl3
+# get smaller dt to export
+wl_sub <- wl[, list(file_name, serial, port, monitoring_location, datetime,
+                    avg, avg_m, avg_head, cf, avg_baro, avg_liner)]
+wl_short <- unique(wl_sub, by = "port")
+write.csv(wl_short, "out/ELR1-R2_blend_cf_td1.csv")
+
+# dont think i need this in this code
+# # corrected pressure values
+# wl <- cf_man[, .(file_name, cf = cf)][wl, on = "file_name"]
+# wl[, head_cf := head_masl + cf]
+
+
+
+
+
+
 ###############################################################################
 #### Plots ####
 
@@ -194,19 +286,19 @@ custom_colors <- c("baro_rbr" = "#ee8326", "liner" = "#a42c27", setNames(viridis
 # plot for air, values_adj
 p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
                 x = ~datetime,
-                y = ~value_adj, #or value, value_adj, value_m
+                y = ~value_m, #or value, value_adj, value_m, value_cf
                 color = ~port,
                 colors = custom_colors,
                 name = ~portloc,
                 type = "scatter", mode = "lines")%>%
   layout(
-    title = list(text = "ELR1-R2: Open Hole Monitoring", # Air, Open Hole
+    title = list(text = "ELR1-R2: Air Monitoring", # Air, Open Hole
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
+    yaxis = list(title = "Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 

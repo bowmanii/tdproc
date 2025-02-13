@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Jan 16, 2025
-# Last updated: Feb 12, 2025
+# Last updated: Feb 13, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -61,6 +61,8 @@ blend_end_well1 <- as.POSIXct("2024-04-05 17:46:00", tz = "UTC") # R1-R1
 #blend_end_well2 <- as.POSIXct("2024-04-05 14:49:00", tz = "UTC") # R1-R2
 blend_start_well3 <- as.POSIXct("2024-07-09 15:22:00", tz = "UTC") # R1-R1
 blend_end_well3 <- as.POSIXct("2024-07-09 16:39:00", tz = "UTC") # R1-R1
+#blend_start_well4 <- as.POSIXct("2024-06-25 20:32:00", tz = "UTC") # R1-R2
+#blend_end_well4 <- as.POSIXct("2024-06-25 21:18:00", tz = "UTC") # R1-R2
 
 ###############################################################################
 #### Data Manipulation ####
@@ -83,7 +85,7 @@ airavg_start_well3 <- as.POSIXct("2024-07-09 11:40:00", tz = "UTC") # R1-R1
 airavg_end_well3 <- as.POSIXct("2024-07-09 11:50:00", tz = "UTC") # R1-R1
 # baro average (Apr 2 14:20 - 14:30, Jul 9 11:40 - 11:50)
 bavg1 <- 9.697238
-bavg2 <- 9.700637
+bavg3 <- 9.700637
 
 # for blended calibration
 # manual wl Apr 05 @ 17:28 = 6.959 mbtoc, 371.161 masl
@@ -179,7 +181,7 @@ air[, avg := mean(value), by = port]
 
 # calculate correction factor (cf) for each transducer from baro avg
 #air[, cf := bavg - avg] # dbar
-air[, cf := (bavg2 - avg) * dbar_to_m]
+air[, cf := (bavg3 - avg) * dbar_to_m]
 air_sub <- air[, !c("well", "screen_top", "screen_bottom", "value")]
 air_short <- unique(air_sub, by = "port")
 write.csv(air_short, "out/ELR1-R1_air_cf_td2.csv")
@@ -327,6 +329,32 @@ s1 <- subplot(p_wl, p_baro_liner, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2
                  tickangle = -45),
     yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
     yaxis2 = list(title = "Pressure (m H20)"), # Δ Pressure (dbar), Pressure (dbar), (m H20)
+    legend = list(traceorder = "reversed")
+  )
+
+# compare liners, baros
+custom_colors <- c("213650" = "#ee8326", "213655" = "#a42c27", "82215" = "#3fb195", "82209" = "#953eb1")
+
+# ELR1-R1 baro s/n: 213655, ELR2-R1 baro s/n: 213650
+# ELR1-R1 liner s/n: 82215, ELR1-R2 liner s/n: 82209
+# ELR2-R1 liner s/n: 203042, ELR2-R2 liner s/n: 82210
+
+# [as.numeric(datetime) %% 10 == 0]
+p_bl <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
+                x = ~datetime,
+                y = ~value_adj, #or value, value_adj, value_m, etc
+                color = ~serial,
+                colors = custom_colors,
+                name = ~serial,
+                type = "scatter", mode = "lines") %>%
+  layout(
+    title = list(text = "Trail", # Air, Open Hole
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 

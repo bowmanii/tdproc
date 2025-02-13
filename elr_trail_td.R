@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 12, 2025
+# Last updated: Feb 13, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -217,18 +217,34 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
-rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end1)]
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start1, cw_rain_end3)]
 # clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
-# clean up memory after - garbage collection
-gc()
 
 # get correction factors into dt
-cf_air <- read.csv("./out/ELR1-R1_air_cf_td1_use.csv") # air correction factors
-setDT(cf_air)
-cf_man <- read.csv("./out/ELR1-R1_blend_cf_td1_use.csv") # manual wl correction factors
-setDT(cf_man)
+cf_air1 <- read.csv("./out/ELR1-R1_air_cf_td1_use.csv") # air correction factors
+setDT(cf_air1)
+cf_air2 <- read.csv("./out/ELR1-R1_air_cf_td2_use.csv") # air correction factors
+setDT(cf_air2)
+cf_man1 <- read.csv("./out/ELR1-R1_blend_cf_td1_use.csv") # manual wl correction factors
+setDT(cf_man1)
+cf_man2 <- read.csv("./out/ELR1-R1_blend_cf_td2_use.csv") # manual wl correction factors
+setDT(cf_man2)
+# merge each cf type into one dt
+cf_a <- list(cf_air1, cf_air2)
+cf_air <- rbindlist(cf_a)
+cf_m <- list(cf_man1, cf_man2)
+cf_man <- rbindlist(cf_m)
+cf_a <- NULL
+cf_air1 <- NULL
+cf_air2 <- NULL
+cf_m <- NULL
+cf_man1 <- NULL
+cf_man2 <- NULL
+
+# clean up memory after - garbage collection
+gc()
 
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
@@ -260,7 +276,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(seal_start_well1, seal_end_well1)]
+pr <- pr[datetime %between% c(seal_start_well1, seal_end_well3)] #seal1-1, seal 3-3, seal 1-3
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -290,6 +306,9 @@ wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
 wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
 wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
 
+# check it worked
+#ans <- wl[port == "01" & datetime == seal_start_well3]
+
 # clean up memory, dts no longer needed
 baro <- NULL
 liner <- NULL
@@ -312,8 +331,6 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 # correction factors
 wl[, head_masl_cf_air := head_masl + cf_air]
 wl[, head_masl_cf_man := head_masl + cf_man]
-wl[, value_m_cf_air := value_m + cf_air]
-wl[, value_m_cf_man := value_m + cf_man]
 
 # clean up wl dt
 wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
@@ -350,8 +367,7 @@ wl_sub <- wl
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
               y = ~value_adj, #or head_masl, or value_m, value_adj, 
-                              #head_masl_cf_air, head_masl_cf_man, 
-                              #value_m_cf_air, value_m_cf_man, etc
+                              #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(16),
               name = ~portloc,
@@ -501,6 +517,7 @@ missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
 
 # display numerous plots in single view, customize plot features (axis titles, etc) using layout
 # to make axis values reverse: yaxis=list(autorange="reversed")
+# or do range in opposite order (c(100,50) etc)
 # custom axis range: range=list(1.5,4.5)
 # minor=list(nticks=50)
 # minor = list(nticks = 140, showgrid = TRUE, gridcolor = "lightgrey", tickmode = "linear")
@@ -585,9 +602,9 @@ s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"),
-                 #autorange="reversed"), # Δ Pressure (m H20)
-                 #range = c(367, 373.5)), 
+    yaxis = list(title = "Δ Pressure (m H20)", # Δ Pressure (m H20)
+                 range = c(-4, 2)),
+                 #autorange ="reversed"),
     yaxis2 = list(title = "Pressure (m H20)"),
     yaxis3 = list(range = c(14.4, 15.5)),
     yaxis4 = list(title = "Precip (mm)"),
