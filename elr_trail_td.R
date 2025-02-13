@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 11, 2025
+# Last updated: Feb 12, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -225,9 +225,9 @@ rcs <- NULL
 gc()
 
 # get correction factors into dt
-cf_air <- read.csv("./out/ELR1-R1_air_cf_use.csv") # air correction factors
+cf_air <- read.csv("./out/ELR1-R1_air_cf_td1_use.csv") # air correction factors
 setDT(cf_air)
-cf_man <- read.csv("./out/ELR1-R1_blend_cf2_use.csv") # manual wl correction factors
+cf_man <- read.csv("./out/ELR1-R1_blend_cf_td1_use.csv") # manual wl correction factors
 setDT(cf_man)
 
 # list all file names from "data" folder, return full file path, only .rsk files
@@ -291,8 +291,8 @@ wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
 wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
 
 # clean up memory, dts no longer needed
-#baro <- NULL
-#liner <- NULL
+baro <- NULL
+liner <- NULL
 
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
@@ -312,6 +312,8 @@ wl[, head_masl := sensor_elev + (value_m - baro_m)]
 # correction factors
 wl[, head_masl_cf_air := head_masl + cf_air]
 wl[, head_masl_cf_man := head_masl + cf_man]
+wl[, value_m_cf_air := value_m + cf_air]
+wl[, value_m_cf_man := value_m + cf_man]
 
 # clean up wl dt
 wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
@@ -319,6 +321,7 @@ wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom",
 
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
+#setkey(wl, file_name)
 
 ###############################################################################
 #### Data Subsets ####
@@ -346,7 +349,9 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl_cf_air, #or head_masl, or value_m, value_adj, head_masl_cf_air, head_masl_cf_man, etc
+              y = ~value_adj, #or head_masl, or value_m, value_adj, 
+                              #head_masl_cf_air, head_masl_cf_man, 
+                              #value_m_cf_air, value_m_cf_man, etc
               color = ~port,
               colors = viridis(16),
               name = ~portloc,
@@ -558,14 +563,31 @@ s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R1: Temporary Deployment",
+    title = list(text = "ELR1-R1: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl)",
-                  range = c(367, 373.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                  range = c(367, 373.5)),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(14.4, 15.5)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
+s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
+  layout(
+    title = list(text = "ELR1-R1: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (m H20)"),
+                 #autorange="reversed"), # Δ Pressure (m H20)
+                 #range = c(367, 373.5)), 
     yaxis2 = list(title = "Pressure (m H20)"),
     yaxis3 = list(range = c(14.4, 15.5)),
     yaxis4 = list(title = "Precip (mm)"),
