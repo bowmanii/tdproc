@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 05, 2024
+# Last updated: Feb 14, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -41,7 +41,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 #well2 <- "ELR1-R2"
 
 # well elevation (m amsl)
-elev1 <- 377.540 + 0.580
+#elev1 <- 377.540 + 0.580
 elev2 <- 379.612 + 0.530
 
 # air calibration
@@ -217,10 +217,32 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
-rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start2, cw_rain_end4)]
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start4, cw_rain_end4)]
 # clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
+
+# get correction factors into dt
+cf_air1 <- read.csv("./out/ELR1-R2_air_cf_td1_use.csv") # air correction factors
+setDT(cf_air1)
+cf_air2 <- read.csv("./out/ELR1-R2_air_cf_td2_use.csv") # air correction factors
+setDT(cf_air2)
+cf_man1 <- read.csv("./out/ELR1-R2_blend_cf_td1_use.csv") # manual wl correction factors
+setDT(cf_man1)
+cf_man2 <- read.csv("./out/ELR1-R2_blend_cf_td2_use.csv") # manual wl correction factors
+setDT(cf_man2)
+# merge each cf type into one dt
+cf_a <- list(cf_air1, cf_air2)
+cf_air <- rbindlist(cf_a)
+cf_m <- list(cf_man1, cf_man2)
+cf_man <- rbindlist(cf_m)
+cf_a <- NULL
+cf_air1 <- NULL
+cf_air2 <- NULL
+cf_m <- NULL
+cf_man1 <- NULL
+cf_man2 <- NULL
+
 # clean up memory after - garbage collection
 gc()
 
@@ -254,7 +276,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(seal_start_well2, seal_end_well4)]
+pr <- pr[datetime %between% c(seal_start_well4, seal_end_well4)]
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -280,6 +302,12 @@ pr <- NULL
 wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
 wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
+# bring in correction factors
+wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
+wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
+# check it worked
+#ans <- wl[port == "01" & datetime == seal_start_well3]
+
 # clean up memory, dts no longer needed
 baro <- NULL
 liner <- NULL
@@ -299,6 +327,9 @@ wl[, value_m := value * dbar_to_m]
 wl[, value_adj := value_m - value_m[1], by = port]
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
+# correction factors
+wl[, head_masl_cf_air := head_masl + cf_air]
+wl[, head_masl_cf_man := head_masl + cf_man]
 
 # clean up wl dt
 wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
@@ -333,7 +364,8 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+                              #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(21),
               name = ~portloc,
@@ -355,6 +387,22 @@ p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               name = "Liner",
               type = "scatter", mode = "lines")
 
+# plot precipitation
+p_rain <- plot_ly(rcs_sub,
+                  x = ~datetime,
+                  y = ~`Precip. Amount (mm)`,
+                  marker = list(color = "#cc72b0"),
+                  name = "2024 Precipitation",
+                  type = "bar")
+
+# plot E4 flow rate
+p_cw <- plot_ly(cw_e4_sub,
+                x = ~datetime_utc,
+                y = ~flow_hrly_avg,
+                line = list(color = "#37bac8"),
+                name = "2023 - E4 Flow",
+                type = "scatter", mode = "lines")
+
 # merging baro and liner plots together on one
 p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
   layout(
@@ -365,22 +413,6 @@ p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter",
     yaxis = list(title = "Pressure (m H20)"),
     legend = list(trace0 = "Liner", trace1 = "Baro")
   )
-
-# plot E4 flow rate
-p_cw <- plot_ly(cw_e4_sub,
-              x = ~datetime_utc,
-              y = ~flow_hrly_avg,
-              line = list(color = "#37bac8"),
-              name = "2023 - E4 Flow",
-              type = "scatter", mode = "lines")
-
-# plot precipitation
-p_rain <- plot_ly(rcs_sub,
-                x = ~datetime,
-                y = ~`Precip. Amount (mm)`,
-                marker = list(color = "#cc72b0"),
-                name = "2024 Precipitation",
-                type = "bar")
 
 # find the 7/8 observations that plotly ignored (warning message)
 missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
@@ -541,14 +573,31 @@ s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment",
+    title = list(text = "ELR1-R2: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl)",
-                  range = c(364, 375.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                 range = c(366, 377.5)),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(16, 17)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
+s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+                 #range = c(-4, 2)),
+                 #autorange = "reversed"),
     yaxis2 = list(title = "Pressure (m H20)"),
     yaxis3 = list(range = c(16, 17)),
     yaxis4 = list(title = "Precip (mm)"),

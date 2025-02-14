@@ -305,7 +305,6 @@ wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
 # bring in correction factors
 wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
 wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
-
 # check it worked
 #ans <- wl[port == "01" & datetime == seal_start_well3]
 

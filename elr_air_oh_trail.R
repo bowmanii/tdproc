@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Jan 16, 2025
-# Last updated: Feb 13, 2025
+# Last updated: Feb 14, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -146,7 +146,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(blend_start_well3, blend_end_well3)] # air, airtrim, blend
+pr <- pr[datetime %between% c(air_start_well3, air_end_well3)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -156,7 +156,7 @@ pr <- loc[pr, on = "file_name"]
 # dt to process all ports together (keep baro,liner as rows)
 # create a new dt to perform further manipulations
 #air <- pr
-air <- pr[datetime %between% c(airavg_start_well3, airavg_end_well3)]
+air <- pr[datetime %between% c(airtrim_start_well3, airtrim_end_well3)]
 # clean up unneeded cols
 air[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
@@ -185,12 +185,6 @@ air[, cf := (bavg3 - avg) * dbar_to_m]
 air_sub <- air[, !c("well", "screen_top", "screen_bottom", "value")]
 air_short <- unique(air_sub, by = "port")
 write.csv(air_short, "out/ELR1-R1_air_cf_td2.csv")
-
-#dont think i need this in this code
-# # corrected pressure values
-# air <- cf_air[, .(file_name, cf = cf)][air, on = "file_name"]
-# air[, value_cf := value + cf]
-# air[, value_cf_m := value_cf * dbar_to_m]
 
 #### open hole period ####
 
@@ -243,11 +237,6 @@ wl_sub <- wl[, list(file_name, serial, port, monitoring_location, datetime,
 wl_short <- unique(wl_sub, by = "port")
 write.csv(wl_short, "out/ELR1-R1_blend_cf_td2.csv")
 
-# dont think i need this in this code
-# # corrected pressure values
-# wl <- cf_man[, .(file_name, cf = cf)][wl, on = "file_name"]
-# wl[, head_cf := head_masl + cf]
-
 ###############################################################################
 #### Plots ####
 
@@ -268,7 +257,7 @@ custom_colors <- c("baro_rbr" = "#ee8326", "liner" = "#a42c27", setNames(viridis
 # plot for air, values_adj
 p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
                  x = ~datetime,
-                 y = ~value_cf, #or value, value_adj, value_m, value_cf
+                 y = ~value_adj, #or value, value_adj, value_m, value_cf
                  color = ~port,
                  colors = custom_colors,
                  name = ~portloc,
@@ -280,7 +269,7 @@ p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
     xaxis = list(title = "Date and time",
                  nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
                  tickangle = -45),
-    yaxis = list(title = "Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
+    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 
