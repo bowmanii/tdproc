@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 14, 2024
+# Last updated: Feb 19, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -217,7 +217,7 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
-rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start4, cw_rain_end4)]
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start2, cw_rain_end2)]
 # clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
@@ -276,7 +276,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(seal_start_well4, seal_end_well4)]
+pr <- pr[datetime %between% c(seal_start_well2, seal_end_well4)]
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -346,7 +346,7 @@ setkey(wl, datetime)
 wl_sub <- wl
 
 # subset the wl dt by desired times
-#wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well4)]
+#wl_sub <- wl[datetime %between% c(seal_start_well2, seal_end_well2)]
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 #write.csv(wl_sub, "out/ELR1-R1_20240405_20240625.csv") # this takes like 1 hr, wont open in excel
 
@@ -596,7 +596,7 @@ s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
                  nticks = 20,
                  tickangle = -45),
     yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
-                 #range = c(-4, 2)),
+                 #range = c(-5, 5)),
                  #autorange = "reversed"),
     yaxis2 = list(title = "Pressure (m H20)"),
     yaxis3 = list(range = c(16, 17)),
