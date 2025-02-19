@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Feb 05, 2025
-# Last updated: Feb 06, 2025
+# Last updated: Feb 19, 2025
 # Description: Processing air monitoring period for trail wells - ELR2-R1
 
 # https://github.com/bowmanii
@@ -42,7 +42,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 # well elevation (m amsl)
 elev1 <- 402.491 + 0.210
-elev2 <- 402.013 + 0.600
+#elev2 <- 402.013 + 0.600
 
 # air calibration
 air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
@@ -64,6 +64,21 @@ airtrim_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 airtrim_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC")
 #airtrim_start_well2 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
 #airtrim_end_well2 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC")
+
+# interval for air average
+# take ~10 min where late time is stable, average baro
+airavg_start_well1 <- as.POSIXct("2024-04-02 14:20:00", tz = "UTC") # R1-R1
+airavg_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R1
+# baro average (Apr 2 14:20 - 14:30)
+bavg1 <- 9.697238
+
+# for blended calibration
+# manual wl Apr 04 @ 17:15 = 17.722 mbtoc, 384.979 masl
+manual_well1 <- as.POSIXct("2024-04-04 17:15:00", tz = "UTC") # R1-R1
+manual_wl1 <- 384.979
+# take +/- 1 min on either side of manual dtw, average
+blendavg_start_well1 <- as.POSIXct("2024-04-04 17:14:00", tz = "UTC") # R1-R1
+blendavg_end_well1 <- as.POSIXct("2024-04-04 17:16:00", tz = "UTC") # R1-R1
 
 # set where data files are located
 file_dir <- "data/"
@@ -91,7 +106,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:2, 4:18)],
+pr <- rsk::read_rsk(fn[c(1:2, 4:18)], #excluding road baro
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -116,9 +131,12 @@ pr <- pr[datetime %between% c(blend_start_well1, blend_end_well1)] # air, airtri
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
 
+#### air monitoring period ####
+
 # dt to process all ports together (keep baro,liner as rows)
 # create a new dt to perform further manipulations
-air <- pr
+#air <- pr
+air <- pr[datetime %between% c(airavg_start_well1, airavg_end_well1)]
 # clean up unneeded cols
 air[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
@@ -132,6 +150,24 @@ air[, value_m := value * dbar_to_m]
 # sorts wl data table by date time (ascending order)
 setkey(air, datetime)
 
+#### manipulations for air correction factor ####
+
+# find baro average
+#vavg <- mean(pr$value)
+#ans <- air[, .(mean(value)), by = port]
+
+# find averages 
+air[, avg := mean(value), by = port]
+
+# calculate correction factor (cf) for each transducer from baro avg
+#air[, cf := bavg - avg] # dbar
+air[, cf := (bavg1 - avg) * dbar_to_m]
+air_sub <- air[, !c("well", "screen_top", "screen_bottom", "value")]
+air_short <- unique(air_sub, by = "port")
+write.csv(air_short, "out/ELR2-R1_air_cf.csv")
+
+#### open hole period ####
+
 # dt to proccess ports separately from baro,liner (pull in as cols)
 # create baro dt from pr subset using condition when port is equal to baro_rbr
 baro <- pr[port == "baro_rbr"]
@@ -139,6 +175,9 @@ baro <- pr[port == "baro_rbr"]
 liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
+# subset
+wl <- wl[datetime %between% c(blendavg_start_well1, blendavg_end_well1)]
+
 # clean up unneeded cols
 wl[, c("well", "serial", "screen_top", "screen_bottom") := NULL]
 # add port name to monitoring location
@@ -159,6 +198,24 @@ wl[, liner_m := liner * dbar_to_m]
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
 # sorts wl data table by date time (ascending order)
 setkey(wl, datetime)
+
+#### manipulations for manual correction factor ####
+
+# get average for each port
+#ans <- wl[, .(mean(value)), by = port] # one way to do it
+wl[, avg := mean(value), by = port] # better way to keep result in dt as col
+wl[, avg_baro := mean(baro), by = port]
+wl[, avg_liner := mean(liner), by = port]
+wl[, avg_m := avg *dbar_to_m]
+wl[, avg_head := sensor_elev + (avg_m - avg_baro)]
+
+# calculate correction factor (cf) for each transducer from manual wl
+wl[, cf := manual_wl1 - avg_head]
+# get smaller dt to export
+wl_sub <- wl[, list(file_name, serial, port, monitoring_location, datetime,
+                    avg, avg_m, avg_head, cf, avg_baro, avg_liner)]
+wl_short <- unique(wl_sub, by = "port")
+write.csv(wl_short, "out/ELR2-R1_blend_cf.csv")
 
 ###############################################################################
 #### Plots ####
@@ -183,9 +240,9 @@ custom_colors <- c("baro_rbr" = "#ee8326", "liner" = "#a42c27", setNames(viridis
 
 # depending on how long period is, may need to subset data
 # [as.numeric(datetime) %% 10 == 0]
-p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
+p_air <- plot_ly(air,
                  x = ~datetime,
-                 y = ~value_adj, #or value, value_adj, value_m, etc
+                 y = ~value, #or value, value_adj, value_m, value_cf
                  color = ~port,
                  colors = custom_colors,
                  name = ~portloc,
@@ -197,7 +254,7 @@ p_air <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
     xaxis = list(title = "Date and time",
                  nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
+    yaxis = list(title = "Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
     legend = list(traceorder = "reversed")
   )
 
@@ -238,7 +295,7 @@ p_baro_liner <- add_trace(p_liner,
 # combine plots
 s1 <- subplot(p_wl, p_baro_liner, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2))%>%
   layout(
-    title = list(text = "ELR2-R1: Open Hole Monitoring", # Air, Open Hole
+    title = list(text = "ELR2-R1: Open Hole Monitoring", # Air Monitoring, Open Hole Monitoring
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -249,7 +306,31 @@ s1 <- subplot(p_wl, p_baro_liner, shareX = TRUE, nrows = 2, heights = c(0.8, 0.2
     legend = list(traceorder = "reversed")
   )
 
+# compare liners, baros
+custom_colors <- c("213650" = "#ee8326", "213655" = "#a42c27", "82215" = "#3fb195", "82209" = "#953eb1")
 
+# ELR1-R1 baro s/n: 213655, ELR2-R1 baro s/n: 213650
+# ELR1-R1 liner s/n: 82215, ELR1-R2 liner s/n: 82209
+# ELR2-R1 liner s/n: 203042, ELR2-R2 liner s/n: 82210
+
+# [as.numeric(datetime) %% 10 == 0]
+p_bl <- plot_ly(air[as.numeric(datetime) %% 10 == 0],
+                x = ~datetime,
+                y = ~value_adj, #or value, value_adj, value_m, etc
+                color = ~serial,
+                colors = custom_colors,
+                name = ~serial,
+                type = "scatter", mode = "lines") %>%
+  layout(
+    title = list(text = "Road", # Air, Open Hole
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20, #~24hrsx3 = 72/20 = 3.6 -> ticks every 3 hrs
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (dbar)"), # Δ Pressure (dbar), Pressure (dbar)
+    legend = list(traceorder = "reversed")
+  )
 
 
 
