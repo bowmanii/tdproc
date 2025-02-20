@@ -3,7 +3,7 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Aug 22, 2024
-# Last updated: Feb 05, 2024
+# Last updated: Feb 19, 2024
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R1)
 
 # https://github.com/bowmanii
@@ -42,7 +42,7 @@ dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of 
 
 # well elevation (m asl)
 elev1 <- 402.491 + 0.210
-elev2 <- 402.013 + 0.600
+#elev2 <- 402.013 + 0.600
 
 # air calibration
 air_start_well1 <- as.POSIXct("2024-03-31 12:00:00", tz = "UTC")
@@ -57,10 +57,14 @@ blend_end_well1 <- as.POSIXct("2024-04-04 17:45:00", tz = "UTC")
 #blend_end_well2 <- as.POSIXct("2024-04-04 15:05:00", tz = "UTC")
 
 # sealed hole
-seal_start_well1 <- as.POSIXct("2024-04-04 20:22:00", tz = "UTC") # 19:22 install done, still recovering, shift by 1hr
+seal_start_well1 <- as.POSIXct("2024-04-04 19:22:00", tz = "UTC")
 seal_end_well1 <- as.POSIXct("2024-10-17 16:16:00", tz = "UTC")
 #seal_start_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC")
 #seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
+
+# trim sealed period
+sealtrim_start_well1 <- as.POSIXct("2024-04-04 20:22:00", tz = "UTC") # still recovering after install, shift by 1hr
+sealtrim_end_well1 <- as.POSIXct("2024-10-03 18:25:00", tz = "UTC") #p13 last entry 2024-10-03 18:26:16
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
@@ -71,7 +75,8 @@ cw_pump_end1 <- as.POSIXct("2023-10-17 17:00:00", tz = "UTC")
 
 # climate data
 cw_rain_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
-cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
+#cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
+cw_rain_end1 <- as.POSIXct("2024-10-03 19:00:00", tz = "UTC")
 #cw_rain_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
 #cw_rain_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
 
@@ -104,7 +109,8 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
 # only include entries that read either well name from the well column
-loc <- loc[well == "ELR2-R1" | port == "baro_rbr"]
+loc <- loc[well == "ELR2-R1" | serial == "213655"]
+#loc <- loc[well == "ELR2-R1" | port == "baro_rbr"]
 #loc <- loc[well == "ELR2-R1"]
 #loc <- loc[well %in% c("ELR2-R1", "ELR2-R2")]
 # use grep to only include rsk files from the file_name column
@@ -151,6 +157,12 @@ rcs <- NULL
 # clean up memory after - garbage collection
 gc()
 
+# get correction factors into dt
+cf_air <- read.csv("./out/ELR2-R1_air_cf_use.csv") # air correction factors
+setDT(cf_air)
+cf_man <- read.csv("./out/ELR2-R1_blend_cf_use.csv") # manual wl correction factors
+setDT(cf_man)
+
 # list all file names from "data" folder, return full file path, only .rsk files
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
 # cross reference the data files to the data table file_name column
@@ -161,7 +173,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(2:18)],
+pr <- rsk::read_rsk(fn[c(1:2, 4:18)], # exclude road baro
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -178,7 +190,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make dt smaller - subset by seal time
-pr <- pr[datetime %between% c(seal_start_well1, seal_end_well1)]
+pr <- pr[datetime %between% c(sealtrim_start_well1, sealtrim_end_well1)]
 
 # bring in the loc DT to pr (9 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -204,6 +216,12 @@ pr <- NULL
 wl <- baro[, .(datetime, baro = value)][wl, on = "datetime", nomatch = NA]
 # add liner pressure to wl dt
 wl <- liner[, .(datetime, liner = value)][wl, on = "datetime", nomatch = NA]
+# bring in correction factors
+wl <- cf_air[, .(file_name, cf_air = cf)][wl, on = "file_name"]
+wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
+# check it worked
+#ans <- wl[port == "01" & datetime == seal_start_well3]
+
 # clean up memory, dts no longer needed
 baro <- NULL
 liner <- NULL
@@ -223,6 +241,9 @@ wl[, value_m := value * dbar_to_m]
 wl[, value_adj := value_m - value_m[1], by = port]
 # calculate water height above transducer from pressure, baro pr, port depth (make new col called "head")
 wl[, head_masl := sensor_elev + (value_m - baro_m)]
+# correction factors
+wl[, head_masl_cf_air := head_masl + cf_air]
+wl[, head_masl_cf_man := head_masl + cf_man]
 
 # clean up wl dt
 wl[, c("liner", "baro", "well", "serial", "screen_top", "screen_bottom", 
@@ -238,13 +259,16 @@ setkey(wl, datetime)
 #wl_sub <- wl[datetime %between% c(seal_start_well1, seal_end_well1)]
 # create new dt so don't have to change the code below :)
 wl_sub <- wl
-test1 <- as.POSIXct("2024-04-04 12:00:00", tz = "UTC")
-test2 <- as.POSIXct("2024-04-05 12:00:00", tz = "UTC")
-wl_sub <- wl_sub[datetime %between% c(test1, test2)]
+
+#wl_sub <- wl[datetime %between% c(sealtrim_start_well1, sealtrim_end_well1)]
+
+#test1 <- as.POSIXct("2024-04-04 12:00:00", tz = "UTC")
+#test2 <- as.POSIXct("2024-04-05 12:00:00", tz = "UTC")
+#wl_sub <- wl_sub[datetime %between% c(test1, test2)]
 
 ###### temp fix. this data is not baro corrected past Sept 26
-wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
-wl <- NULL
+#wl_sub[, head_masl := sensor_elev + (value_m - coalesce(baro_m, 0))]
+#wl <- NULL
 #wl_sub <- wl[datetime %between% c(tprof_s, tprof_e)]
 
 ###############################################################################
@@ -255,7 +279,8 @@ wl <- NULL
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl_cf_man, #or head_masl, or value_m, value_adj, 
+                              #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(14),
               name = ~portloc,
@@ -277,14 +302,6 @@ p_liner <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               name = "Liner",
               type = "scatter", mode = "lines")
 
-# plot E4 flow rate
-p_cw <- plot_ly(cw_e4_sub,
-                x = ~datetime_utc,
-                y = ~flow_hrly_avg,
-                line = list(color = "#37bac8"),
-                name = "2023 - E4 Flow",
-                type = "scatter", mode = "lines")
-
 # plot precipitation
 p_rain <- plot_ly(rcs_sub,
                   x = ~datetime,
@@ -292,6 +309,14 @@ p_rain <- plot_ly(rcs_sub,
                   marker = list(color = "#cc72b0"),
                   name = "2024 Precipitation",
                   type = "bar")
+
+# plot E4 flow rate
+p_cw <- plot_ly(cw_e4_sub,
+                x = ~datetime_utc,
+                y = ~flow_hrly_avg,
+                line = list(color = "#37bac8"),
+                name = "2023 - E4 Flow",
+                type = "scatter", mode = "lines")
 
 # find the 7/8 observations that plotly ignored (warning message)
 missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
@@ -423,21 +448,36 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR2-R1: Temporary Deployment",
+    title = list(text = "ELR2-R1: Temporary Deployment - Manual Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Head (m asl)"),
-                 #range = c(364, 375.5)), # Δ Pressure (m H20)
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+                 #range = c(364, 375.5)),
     yaxis2 = list(title = "Pressure (m H20)"),
-    #yaxis3 = list(range = c(16, 17)),
+    yaxis3 = list(range = c(9.7, 10.1)),
     yaxis4 = list(title = "Precip (mm)"),
     legend = list(traceorder = "reversed")
   )
 
-range = c(9.7,10.1)
+s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
+  layout(
+    title = list(text = "ELR2-R1: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+                 #range = c(-4, 2)),
+                 #autorange ="reversed"),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(9.7, 10.1)),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
 
 # plot wl, baro, liner, pump, rain together
 s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
@@ -462,7 +502,7 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:3
 #write.csv(vhp, "ELR1-R2_vhp_Hamid.csv")
 # shorten table further if desired
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
-write.csv(vhp, "out/ELR1-R2_vhp.csv")
+write.csv(vhp, "out/ELR2-R1_vhp.csv")
 
 ###############################################################################
 #### Data Table Manipulations ####
