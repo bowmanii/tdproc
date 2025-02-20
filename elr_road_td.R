@@ -37,7 +37,7 @@ library(hydrorecipes)
 
 dbar_to_m <- 1.0199773339984 # rbr data reads pressure in dbar, convert to m of H20
 
-#well1 <- "ELR2-R1"
+well1 <- "ELR2-R1"
 #well2 <- "ELR2-R2"
 
 # well elevation (m asl)

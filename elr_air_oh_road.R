@@ -67,18 +67,18 @@ airtrim_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC")
 
 # interval for air average
 # take ~10 min where late time is stable, average baro
-airavg_start_well1 <- as.POSIXct("2024-04-02 14:20:00", tz = "UTC") # R1-R1
-airavg_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R1-R1
+airavg_start_well1 <- as.POSIXct("2024-04-02 14:20:00", tz = "UTC") # R2-R1
+airavg_end_well1 <- as.POSIXct("2024-04-02 14:30:00", tz = "UTC") # R2-R1
 # baro average (Apr 2 14:20 - 14:30)
 bavg1 <- 9.697238
 
 # for blended calibration
 # manual wl Apr 04 @ 17:15 = 17.722 mbtoc, 384.979 masl
-manual_well1 <- as.POSIXct("2024-04-04 17:15:00", tz = "UTC") # R1-R1
+manual_well1 <- as.POSIXct("2024-04-04 17:15:00", tz = "UTC") # R2-R1
 manual_wl1 <- 384.979
 # take +/- 1 min on either side of manual dtw, average
-blendavg_start_well1 <- as.POSIXct("2024-04-04 17:14:00", tz = "UTC") # R1-R1
-blendavg_end_well1 <- as.POSIXct("2024-04-04 17:16:00", tz = "UTC") # R1-R1
+blendavg_start_well1 <- as.POSIXct("2024-04-04 17:14:00", tz = "UTC") # R2-R1
+blendavg_end_well1 <- as.POSIXct("2024-04-04 17:16:00", tz = "UTC") # R2-R1
 
 # set where data files are located
 file_dir <- "data/"
@@ -89,10 +89,12 @@ loc <- read_xlsx("./metadata/transducer_locations.xlsx", na = "NA")
 # create a data.table using the metadata file we just read in
 setDT(loc)
 # only include entries that read either well name from the well column
-#loc <- loc[well == "ELR2-R2" | port == "baro_rbr"]
-loc <- loc[well == "ELR2-R1" | serial == "213655"]
+#loc <- loc[well == "ELR2-R1" | port == "baro_rbr"]
+#loc <- loc[well == "ELR2-R2" | serial == "213650"] # road baro
+loc <- loc[well == "ELR2-R1" | serial == "213655"] # trail baro
 #loc <- loc[well == "ELR2-R1"]
 #loc <- loc[well %in% c("ELR2-R1", "ELR2-R2")]
+#loc <- loc[serial %in% c("213655", "213650", "203042", "82210")]
 # use grep to only include rsk files from the file_name column
 loc <- loc[grep("rsk", file_name)]
 
