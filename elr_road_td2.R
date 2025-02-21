@@ -3,7 +3,7 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Dec 20, 2024
-# Last updated: Feb 05, 2024
+# Last updated: Feb 21, 2024
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R2)
 
 # https://github.com/bowmanii
@@ -63,8 +63,8 @@ seal_start_well2 <- as.POSIXct("2024-04-04 15:53:00", tz = "UTC")
 seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
 
 # trim sealed period
-#sealtrim_start_well1 <- as.POSIXct("2024-04-04 20:22:00", tz = "UTC") # still recovering after install, shift by 1hr
-#sealtrim_end_well1 <- as.POSIXct("2024-10-03 18:25:00", tz = "UTC") #p13 last entry 2024-10-03 18:26:16
+sealtrim_start_well2 <- as.POSIXct("2024-04-05 20:00:00", tz = "UTC") # pumped water out, adjusting
+sealtrim_end_well2 <- as.POSIXct("2024-08-21 14:05:00", tz = "UTC") #p20 last good entry 2024-08-21 14:05:00
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
@@ -76,8 +76,10 @@ cw_pump_end2 <- as.POSIXct("2023-10-17 15:00:00", tz = "UTC")
 # climate data
 #cw_rain_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
 #cw_rain_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
-cw_rain_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
-cw_rain_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
+#cw_rain_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
+cw_rain_start2 <- as.POSIXct("2024-04-05 20:00:00", tz = "UTC")
+#cw_rain_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
+cw_rain_end2 <- as.POSIXct("2024-08-21 15:00:00", tz = "UTC")
 
 # flute liner installs/removals for ELR2-R1
 #flute_start_well1 <- as.POSIXct("2024-04-04 17:45:00", tz = "UTC") # install
@@ -171,7 +173,7 @@ fn <- fn[basename(fn) %in% loc$file_name]
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:22)], # exclude port 08
+pr <- rsk::read_rsk(fn[c(1:10, 12:23)], # exclude port 08
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -188,7 +190,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make dt smaller - subset by seal time
-pr <- pr[datetime %between% c(seal_start_well2, seal_end_well2)]
+pr <- pr[datetime %between% c(sealtrim_start_well2, sealtrim_end_well2)]
 
 # bring in the loc DT to pr (9 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -275,7 +277,7 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~head_masl, #or head_masl, or value_m, value_adj,
+              y = ~value_m, #or head_masl, or value_m, value_adj,
                               #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(20), #19?
@@ -445,7 +447,7 @@ s1 <- subplot(p_wl, p_baro, p_liner, shareX = TRUE, nrows = 3, heights = c(0.7, 
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR2-R2: Temporary Deployment - Air Corr", #Air Corr, Manual Corr, No Corr
+    title = list(text = "ELR2-R2: Temporary Deployment - Manual Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -461,17 +463,17 @@ s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
 
 s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR2-R1: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
+    title = list(text = "ELR2-R2: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
                  nticks = 20,
                  tickangle = -45),
-    yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
-    #range = c(-4, 2)),
-    #autorange ="reversed"),
+    yaxis = list(title = "Pressure (m H20)", # Δ Pressure (m H20)
+                 #range = c(-4, 2)),
+                 autorange ="reversed"),
     yaxis2 = list(title = "Pressure (m H20)"),
-    yaxis3 = list(range = c(9.7, 10.1)),
+    #yaxis3 = list(range = c(9.7, 10.1)),
     yaxis4 = list(title = "Precip (mm)"),
     legend = list(traceorder = "reversed")
   )
