@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Jan 16, 2025
-# Last updated: Feb 14, 2025
+# Last updated: Mar 11, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -146,7 +146,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(air_start_well3, air_end_well3)] # air, airtrim, blend
+pr <- pr[datetime %between% c(blend_start_well1, blend_end_well1)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -196,7 +196,7 @@ liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
 #wl <- wl[datetime == manual_well1]
-wl <- wl[datetime %between% c(blend_start_well3, blend_end_well3)]
+wl <- wl[datetime %between% c(blendavg_start_well1, blendavg_end_well1)]
 
 # clean up unneeded cols
 wl[, c("well", "serial", "screen_top", "screen_bottom") := NULL]

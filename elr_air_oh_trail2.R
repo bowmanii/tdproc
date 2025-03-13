@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: Feb 05, 2025
-# Last updated: Feb 14, 2025
+# Last updated: Mar 13, 2025
 # Description: Processing air monitoring period for trail wells - ELR1-R2
 
 # https://github.com/bowmanii
@@ -150,7 +150,7 @@ pr_a[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr_a[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr_a[datetime %between% c(blend_start_well4, blend_end_well4)] # air, airtrim, blend
+pr <- pr_a[datetime %between% c(blend_start_well2, blend_end_well4)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -199,7 +199,7 @@ baro <- pr[port == "baro_rbr"]
 liner <- pr[port == "liner"]
 # new dt
 wl <- pr[!port %in% c("baro_rbr", "liner")]
-#wl <- wl[datetime == manual_well1]
+wl2 <- wl[datetime == manual_well4]
 wl <- wl[datetime %between% c(blendavg_start_well4, blendavg_end_well4)]
 
 # clean up unneeded cols
@@ -234,7 +234,7 @@ wl[, avg_m := avg *dbar_to_m]
 wl[, avg_head := sensor_elev + (avg_m - avg_baro)]
 
 # calculate correction factor (cf) for each transducer from manual wl
-wl[, cf := manual_wl4 - avg_head] # manual_wl2, manual_wl4
+wl[, cf := manual_wl2 - avg_head] # manual_wl2, manual_wl4
 # get smaller dt to export
 wl_sub <- wl[, list(file_name, serial, port, monitoring_location, datetime,
                     avg, avg_m, avg_head, cf, avg_baro, avg_liner)]

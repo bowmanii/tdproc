@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 19, 2024
+# Last updated: Mar 13, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -74,14 +74,14 @@ seal_end_well4 <- as.POSIXct("2024-10-18 15:44:00", tz = "UTC")
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
-#cw_pump_start1 <- as.POSIXct("2023-04-05 18:00:00", tz = "UTC")
-#cw_pump_end1 <- as.POSIXct("2023-06-25 20:00:00", tz = "UTC")
-cw_pump_start2 <- as.POSIXct("2023-04-05 15:00:00", tz = "UTC")
-cw_pump_end2 <- as.POSIXct("2023-06-24 15:00:00", tz = "UTC")
-#cw_pump_start3 <- as.POSIXct("2023-07-09 17:00:00", tz = "UTC")
-#cw_pump_end3 <- as.POSIXct("2023-07-29 15:00:00", tz = "UTC")
-cw_pump_start4 <- as.POSIXct("2023-06-25 21:00:00", tz = "UTC")
-cw_pump_end4 <- as.POSIXct("2023-10-18 16:00:00", tz = "UTC")
+#cw_pump_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
+#cw_pump_end1 <- as.POSIXct("2024-06-25 20:00:00", tz = "UTC")
+cw_pump_start2 <- as.POSIXct("2024-04-05 15:00:00", tz = "UTC")
+cw_pump_end2 <- as.POSIXct("2024-06-24 15:00:00", tz = "UTC")
+#cw_pump_start3 <- as.POSIXct("2024-07-09 17:00:00", tz = "UTC")
+#cw_pump_end3 <- as.POSIXct("2024-07-29 15:00:00", tz = "UTC")
+cw_pump_start4 <- as.POSIXct("2024-06-25 21:00:00", tz = "UTC")
+cw_pump_end4 <- as.POSIXct("2024-10-18 16:00:00", tz = "UTC")
 
 # climate data
 #cw_rain_start1 <- as.POSIXct("2024-04-05 18:00:00", tz = "UTC")
@@ -217,7 +217,7 @@ rcs[, c("Temp Flag", "Dew Point Temp Flag", "Rel Hum Flag", "Precip. Amount Flag
         "Wind Dir Flag", "Wind Spd Flag", "Visibility (km)", "Visibility Flag", 
         "Stn Press Flag", "Hmdx Flag", "Wind Chill Flag") := NULL]
 # subset data by cols and times
-rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start2, cw_rain_end2)]
+rcs_sub <- rcs[, .(datetime, `Precip. Amount (mm)`)][datetime %between% c(cw_rain_start2, cw_rain_end4)]
 # clean up memory by setting rd, rcs to null
 rd <- NULL
 rcs <- NULL
@@ -364,7 +364,7 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_adj, #or head_masl, or value_m, value_adj, etc
+              y = ~head_masl_cf_man, #or head_masl, or value_m, value_adj, etc
                               #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(21),
@@ -392,7 +392,7 @@ p_rain <- plot_ly(rcs_sub,
                   x = ~datetime,
                   y = ~`Precip. Amount (mm)`,
                   marker = list(color = "#cc72b0"),
-                  name = "2024 Precipitation",
+                  name = "Precipitation",
                   type = "bar")
 
 # plot E4 flow rate
@@ -400,7 +400,7 @@ p_cw <- plot_ly(cw_e4_sub,
                 x = ~datetime_utc,
                 y = ~flow_hrly_avg,
                 line = list(color = "#37bac8"),
-                name = "2023 - E4 Flow",
+                name = "E4 Pumping",
                 type = "scatter", mode = "lines")
 
 # merging baro and liner plots together on one
@@ -573,7 +573,7 @@ s3 <- subplot(s1, p_rain, p_cw, shareX = FALSE, nrows = 3, heights = c(0.5, 0.25
 # plot wl, baro, liner, rain together
 s4 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights = c(0.55, 0.1, 0.1, 0.25))%>%
   layout(
-    title = list(text = "ELR1-R2: Temporary Deployment - No Corr", #Air Corr, Manual Corr, No Corr
+    title = list(text = "ELR1-R2: Temporary Deployment - Manual Corr", #Air Corr, Manual Corr, No Corr
                  y = 0.98,
                  font = list(size = 18)),
     xaxis = list(title = "Date and time",
@@ -618,6 +618,24 @@ s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
     legend = list(traceorder = "reversed")
   )
 
+# plot wl, baro, liner, rain together
+s7 <- subplot(p_wl, p_baro, p_liner, p_rain, p_cw, shareX = TRUE, nrows = 5, heights = c(0.5, 0.1, 0.1, 0.15, 0.15))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment - Manual Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                 range = c(366, 377.5)),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis3 = list(range = c(16, 17)),
+    yaxis4 = list(title = "Precip (mm)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
 ###############################################################################
 #### Extract Processed Data ####
 
@@ -627,7 +645,13 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:3
 #write.csv(vhp, "ELR1-R1_vhp_Hamid.csv")
 # shorten table
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
-write.csv(vhp, "out/ELR1-R1_vhp_v2.csv")
+write.csv(vhp, "out/ELR1-R2_vhp_v2.csv")
+
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00", "2024-05-31 18:15:00", 
+                                         "2024-06-03 18:05:00", "2024-07-25 14:00:00", "2024-07-25 19:00:00", 
+                                         "2024-07-25 21:45:00", "2024-09-15 22:15:00", "2024-09-22 21:00:00"), tz = "UTC")]
+vhp <- vhp[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
+write.csv(vhp, "out/ELR1-R2_vhp_v2.csv")
 
 ###############################################################################
 #### Data Table Manipulations ####

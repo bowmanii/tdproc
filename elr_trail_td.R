@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Feb 13, 2025
+# Last updated: Mar 12, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -629,11 +629,13 @@ s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
 
 # create DT for vertical head profiles
 #vhp <- wl[datetime %in% as.POSIXct(c("2024-05-12 8:45:00", "2024-05-18 12:25:00"), tz = "UTC")] #old choice
-vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00"), tz = "UTC")]
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00", "2024-05-31 18:15:00", 
+                                         "2024-06-03 18:05:00", "2024-07-25 14:00:00", "2024-07-25 19:00:00", 
+                                         "2024-07-25 21:45:00"), tz = "UTC")]
 #write.csv(vhp, "ELR1-R1_vhp_Hamid.csv")
 # shorten table
-vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
-write.csv(vhp, "out/ELR1-R1_vhp_v2.csv")
+vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl, head_masl_cf_air, head_masl_cf_man)]
+write.csv(vhp, "out/ELR1-R1_vhp_v4.csv")
 
 ###############################################################################
 #### Data Table Manipulations ####
