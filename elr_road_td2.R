@@ -3,7 +3,7 @@
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
 # Created: Dec 20, 2024
-# Last updated: Feb 21, 2024
+# Last updated: Mar 19, 2024
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R2)
 
 # https://github.com/bowmanii
@@ -65,13 +65,17 @@ seal_end_well2 <- as.POSIXct("2024-10-17 14:14:00", tz = "UTC")
 # trim sealed period
 sealtrim_start_well2 <- as.POSIXct("2024-04-05 20:00:00", tz = "UTC") # pumped water out, adjusting
 sealtrim_end_well2 <- as.POSIXct("2024-08-21 14:05:00", tz = "UTC") #p20 last good entry 2024-08-21 14:05:00
+#sealtrim_end_well2 <- as.POSIXct("2024-09-30 19:20:00", tz = "UTC") #p07 last good entry 2024-09-30 19:20:00
 
 # pumping data for sealed holes
 # 2023 data. Waiting for 2024 data
-#cw_pump_start1 <- as.POSIXct("2023-04-04 19:00:00", tz = "UTC")
-#cw_pump_end1 <- as.POSIXct("2023-10-17 17:00:00", tz = "UTC")
-cw_pump_start2 <- as.POSIXct("2023-04-04 15:00:00", tz = "UTC")
-cw_pump_end2 <- as.POSIXct("2023-10-17 15:00:00", tz = "UTC")
+#cw_pump_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
+#cw_pump_end1 <- as.POSIXct("2024-10-17 17:00:00", tz = "UTC")
+#cw_rain_end1 <- as.POSIXct("2024-10-03 19:00:00", tz = "UTC")
+#cw_pump_start2 <- as.POSIXct("2024-04-04 15:00:00", tz = "UTC")
+cw_pump_start2 <- as.POSIXct("2024-04-05 20:00:00", tz = "UTC")
+#cw_pump_end2 <- as.POSIXct("2024-10-17 15:00:00", tz = "UTC")
+cw_pump_end2 <- as.POSIXct("2024-08-21 15:00:00", tz = "UTC")
 
 # climate data
 #cw_rain_start1 <- as.POSIXct("2024-04-04 19:00:00", tz = "UTC")
@@ -277,7 +281,7 @@ wl_sub <- wl
 # p1 <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0]
 p_wl <- plot_ly(wl_sub[as.numeric(datetime) %% 300 == 0],
               x = ~datetime,
-              y = ~value_m, #or head_masl, or value_m, value_adj,
+              y = ~head_masl_cf_man, #or head_masl, or value_m, value_adj,
                               #head_masl_cf_air, head_masl_cf_man, etc
               color = ~port,
               colors = viridis(20), #19?
@@ -305,7 +309,7 @@ p_rain <- plot_ly(rcs_sub,
                   x = ~datetime,
                   y = ~`Precip. Amount (mm)`,
                   marker = list(color = "#cc72b0"),
-                  name = "2024 Precipitation",
+                  name = "Precipitation",
                   type = "bar")
 
 # plot E4 flow rate
@@ -313,7 +317,7 @@ p_cw <- plot_ly(cw_e4_sub,
                 x = ~datetime_utc,
                 y = ~flow_hrly_avg,
                 line = list(color = "#37bac8"),
-                name = "2023 - E4 Flow",
+                name = "E4 Pumping",
                 type = "scatter", mode = "lines")
 
 
@@ -492,6 +496,23 @@ s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
     legend = list(traceorder = "reversed")
   )
 
+# plot wl, baro, liner, rain together
+s7 <- subplot(p_wl, p_baro, p_liner, p_rain, p_cw, shareX = TRUE, nrows = 5, heights = c(0.5, 0.1, 0.1, 0.15, 0.15))%>%
+  layout(
+    title = list(text = "ELR2-R2: Temporary Deployment - Manual Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Head (m asl)"), # Δ Pressure (m H20)
+    yaxis2 = list(title = "Pressure (m H20)"),
+    #yaxis3 = list(range = c(9.7, 10.1)),
+    yaxis4 = list(title = "Precip (mm)"),
+    yaxis5 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
 ###############################################################################
 #### Extract Processed Data ####
 
@@ -502,6 +523,12 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:3
 # shorten table further if desired
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
 write.csv(vhp, "out/ELR2-R2_vhp.csv")
+
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-04-06 10:10:00", "2024-05-12 12:45:00", 
+                                         "2024-06-19 16:40:00", "2024-07-25 14:00:00", 
+                                         "2024-08-09 12:50:00"), tz = "UTC")]
+vhp <- vhp[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
+write.csv(vhp, "out/ELR2-R2_vhp_v1.csv")
 
 ###############################################################################
 #### Data Table Manipulations ####
