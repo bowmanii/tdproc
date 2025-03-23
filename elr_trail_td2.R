@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Mar 13, 2024
+# Last updated: Mar 21, 2024
 # Description: Processing temporary deployment data from 2024 on trail wells (ELR1-R2)
 
 # https://github.com/bowmanii
@@ -292,8 +292,8 @@ wl <- pr[!port %in% c("baro_rbr", "liner")]
 # clean up memory - dt's no longer using,, unneeded cols
 baro[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
 liner[, c("well", "serial", "port", "screen_top", "screen_bottom", "monitoring_location") := NULL]
-loc <- NULL
-pr <- NULL
+#loc <- NULL
+#pr <- NULL
 
 # using baro dt, use datetime to match columns between both dts to the wl dt, create new column baro that has the baro value, if no match, no value
 # nomatch=0 = drops rows w/out a match
@@ -309,8 +309,8 @@ wl <- cf_man[, .(file_name, cf_man = cf)][wl, on = "file_name"]
 #ans <- wl[port == "01" & datetime == seal_start_well3]
 
 # clean up memory, dts no longer needed
-baro <- NULL
-liner <- NULL
+#baro <- NULL
+#liner <- NULL
 
 # add port name to monitoring location
 wl[, portloc := paste(paste(port, monitoring_location, sep = " - "), "mbtoc")]
@@ -647,11 +647,13 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:3
 vhp <- vhp[, list(datetime, well, port, monitoring_location, head_masl)]
 write.csv(vhp, "out/ELR1-R2_vhp_v2.csv")
 
-vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-05-12 12:45:00", "2024-05-18 18:35:00", "2024-05-31 18:15:00", 
-                                         "2024-06-03 18:05:00", "2024-07-25 14:00:00", "2024-07-25 19:00:00", 
-                                         "2024-07-25 21:45:00", "2024-09-15 22:15:00", "2024-09-22 21:00:00"), tz = "UTC")]
+vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-04-05 18:35:00", "2024-05-12 12:45:00", 
+                                         "2024-05-18 18:35:00", "2024-05-31 18:15:00", 
+                                         "2024-06-03 18:05:00", "2024-07-25 14:00:00", 
+                                         "2024-07-25 19:00:00", "2024-07-25 21:45:00", 
+                                         "2024-09-15 22:15:00", "2024-09-22 21:00:00"), tz = "UTC")]
 vhp <- vhp[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
-write.csv(vhp, "out/ELR1-R2_vhp_v2.csv")
+write.csv(vhp, "out/ELR1-R2_vhp_v3.csv")
 
 ###############################################################################
 #### Data Table Manipulations ####

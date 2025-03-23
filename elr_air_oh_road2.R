@@ -128,7 +128,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(blend_start_well2, blend_end_well2)] # air, airtrim, blend
+pr <- pr[datetime %between% c(airtrim_start_well2, airtrim_end_well2)] # air, airtrim, blend
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -166,7 +166,7 @@ air[, avg := mean(value), by = port]
 air[, cf := (bavg2 - avg) * dbar_to_m]
 air_sub <- air[, !c("well", "screen_top", "screen_bottom", "value")]
 air_short <- unique(air_sub, by = "port")
-write.csv(air_short, "out/ELR2-R2_air_cf.csv")
+write.csv(air_short, "out/ELR2-R2_air_cf2.csv")
 
 #### open hole period ####
 
@@ -217,7 +217,7 @@ wl[, cf := manual_wl2 - avg_head]
 wl_sub <- wl[, list(file_name, serial, port, monitoring_location, datetime,
                     avg, avg_m, avg_head, cf, avg_baro, avg_liner)]
 wl_short <- unique(wl_sub, by = "port")
-write.csv(wl_short, "out/ELR2-R2_blend_cf.csv")
+write.csv(wl_short, "out/ELR2-R2_blend_cf2.csv")
 
 ###############################################################################
 #### Plots ####
