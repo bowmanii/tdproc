@@ -3,7 +3,7 @@
 # SiteID: ELR1-R1, ELR1-R2
 # Author: Isabella Bowman
 # Created: July 18 2024
-# Last updated: Mar 21, 2025
+# Last updated: Apr 22, 2025
 # Description: Processing temporary deployment data from 2024 on trail wells - ELR1-R1
 
 # https://github.com/bowmanii
@@ -20,6 +20,7 @@ library(dplyr)
 library(lubridate)
 
 # pull in Kennel's packages if don't already have
+# make sure to clear workspace and restart R first
 #remotes::install_github("jkennel/rsk")
 #remotes::install_github("jkennel/transducer")
 #remotes::install_github("jkennel/hydrorecipes")
@@ -250,13 +251,16 @@ gc()
 fn <- list.files(file_dir, full.names = TRUE, pattern = "*.rsk")
 # cross reference the data files to the data table file_name column
 fn <- fn[basename(fn) %in% loc$file_name]
+# grep = matches to an argument 
+fn_sub <- fn[grep("20240626", fn)]
 
 # using Kennels rsk package, read 1 transducer file from our fn variable to get the pressure data
 # returns the stored data as a data.table, includes the file name
 # simplify names uses "pressure_compensated" values when they exist (new RBR's record this), 
 # if not, use the "pressure" value instead. TRUE = do this command
 # raw, keep_raw is about what data it retains
-pr <- rsk::read_rsk(fn[c(1:36)],
+#pr <- rsk::read_rsk(fn[c(1:36)],
+pr <- rsk::read_rsk(fn_sub[c(1:2,10)],
                     return_data_table = TRUE,
                     include_params = c('file_name'),
                     simplify_names = TRUE,
@@ -276,7 +280,7 @@ pr[, file_name := basename(file_name)]
 loc[, c("site", "is_baro", "use") := NULL]
 pr[, c("variable") := NULL]
 # make tables smaller before manipulations
-pr <- pr[datetime %between% c(seal_start_well1, seal_end_well3)] #seal1-1, seal 3-3, seal 1-3
+pr <- pr[datetime %between% c(seal_start_well1, seal_end_well1)] #seal1-1, seal 3-3, seal 1-3
 
 # bring in the loc DT to pr (13 cols), match data on file_name col
 pr <- loc[pr, on = "file_name"]
@@ -656,6 +660,10 @@ vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-04-05 18:35:00", "2024-05-12 12:4
 vhp <- vhp[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
 write.csv(vhp, "out/ELR1-R1_vhp_v5.csv")
 
+vhp2 <- wl_sub[datetime %in% as.POSIXct(c("2024-07-09 17:35:00"), tz = "UTC")]
+vhp2 <- vhp2[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
+write.csv(vhp2, "out/ELR1-R1_vhp_v6.csv")
+
 ###############################################################################
 #### Data Table Manipulations ####
 
@@ -666,6 +674,15 @@ wl_sub <- wl_sub[,list(datetime, value, baro, port)]
 wl_wide <- data.table::dcast(wl_sub, datetime+baro~port)
 # using wl_wide dt, replace 1,2,etc with "port_01", etc
 setnames(wl_wide, c("1","2"), c("port_01", "port_02"), skip_absent = TRUE)
+
+
+###############################################################################
+#### Barometric Efficiency ####
+
+hydrorecipes::be_visual(wl_sub, dep = "value_m",
+                        ind = "baro_m", time = "datetime",
+                        be_tests = seq(0, 1.0, 0.5), inverse = FALSE)
+
 
 ###############################################################################
 #### Barometric Deconvolution Example ####
