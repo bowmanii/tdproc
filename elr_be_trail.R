@@ -55,7 +55,7 @@ baro <- rsk::read_rsk(fn_sub[c(1)],
                     keep_raw = FALSE,
                     raw = TRUE)[variable == "pressure"]
 
-wl <- rsk::read_rsk(fn_sub[c(10)],
+wl <- rsk::read_rsk(fn_sub[c(2)],
                       return_data_table = TRUE,
                       include_params = c('file_name'),
                       simplify_names = TRUE,
@@ -71,7 +71,7 @@ wl_baro <- baro[,.(datetime, baro = value - mean(value))][wl[, .(datetime, value
 
 # subset date range
 # goal = times where there is no pumping, its "stable"
-wl_baro <- wl_baro[between(datetime, as.POSIXct("2024-04-17", tz = "UTC"), as.POSIXct("2024-05-16", tz = "UTC"))]
+wl_baro <- wl_baro[between(datetime, as.POSIXct("2024-04-17", tz = "UTC"), as.POSIXct("2024-04-24", tz = "UTC"))]
 
 # visualize the data
 # dependent variable = wl pressure
