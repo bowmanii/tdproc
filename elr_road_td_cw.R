@@ -2,8 +2,8 @@
 # Site: ELR
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
-# Created: Aug 22, 2024
-# Last updated: Mar 18, 2024
+# Created: Jun 17 2025
+# Last updated: Jun 17 2025
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R1)
 
 # https://github.com/bowmanii
