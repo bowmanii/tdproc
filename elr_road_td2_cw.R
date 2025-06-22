@@ -2,8 +2,8 @@
 # Site: ELR
 # SiteID: ELR2-R1, ELR2-R2
 # Author: Isabella Bowman
-# Created: Dec 20, 2024
-# Last updated: Mar 19, 2024
+# Created: Jun 22, 2025
+# Last updated: Jun 22, 2025
 # Description: Processing temporary deployment data from 2024 on road wells (ELR2-R2)
 
 # https://github.com/bowmanii
@@ -137,6 +137,32 @@ cw_e4[, c("comments", "datetime") := NULL]
 cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end2)]
 # remove larger dt
 cw_e4 <- NULL # clean up memory
+
+cw_e3 <- read_xlsx("./data/cw_wells.xlsx", sheet = "Well E3", skip = 2)
+setDT(cw_e3)
+colnames(cw_e3) <- c("time", "flow", "drawdown", "waterlevel", "comments")
+cw_e3[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
+cw_e3[, datetime := force_tz(time, tzone = "America/Toronto")]
+cw_e3[, datetime_utc := with_tz(datetime, tzone = "UTC")]
+cw_e3[, c("comments", "datetime") := NULL]
+cw_e3_sub <- cw_e3[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end2)]
+cw_e3 <- NULL
+
+cw_e1 <- read_xlsx("./data/cw_wells.xlsx", sheet = "Well E1", skip = 2)
+setDT(cw_e1)
+colnames(cw_e1) <- c("time", "flow", "drawdown", "waterlevel", "comments")
+cw_e1[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - lag(flow))]
+cw_e1[, datetime := force_tz(time, tzone = "America/Toronto")]
+cw_e1[, datetime_utc := with_tz(datetime, tzone = "UTC")]
+cw_e1[, c("comments", "datetime") := NULL]
+# do this. above didnt work.
+z_score <- scale(cw_e1$flow_hrly_avg) # standardizing the data
+outliers <- cw_e1$flow_hrly_avg[abs(z_score) > 2]
+upper_limit <- 114.0000
+lower_limit <- 0.0000
+cw_e1_outliers <- subset(cw_e1, flow_hrly_avg <= upper_limit & flow_hrly_avg >= lower_limit)
+cw_e1_sub <- cw_e1_outliers[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end2)]
+cw_e1 <- NULL
 
 # precipitation data - monthly files - Elora RCS
 # read in files (file paths) using the data dir and subsetting by csv files only
@@ -312,14 +338,27 @@ p_rain <- plot_ly(rcs_sub,
                   name = "Precipitation",
                   type = "bar")
 
-# plot E4 flow rate
-p_cw <- plot_ly(cw_e4_sub,
-                x = ~datetime_utc,
-                y = ~flow_hrly_avg,
-                line = list(color = "#37bac8"),
-                name = "E4 Pumping",
-                type = "scatter", mode = "lines")
+# plot flow
+p_cw_e4 <- plot_ly(cw_e4_sub,
+                   x = ~datetime_utc,
+                   y = ~flow_hrly_avg,
+                   line = list(color = "#37bac8"),
+                   name = "E4 Pumping",
+                   type = "scatter", mode = "lines")
 
+p_cw_e3 <- plot_ly(cw_e3_sub,
+                   x = ~datetime_utc,
+                   y = ~flow_hrly_avg,
+                   line = list(color = "#8e37c8"),
+                   name = "E3 Pumping",
+                   type = "scatter", mode = "lines")
+
+p_cw_e1 <- plot_ly(cw_e1_sub,
+                   x = ~datetime_utc,
+                   y = ~flow_hrly_avg,
+                   line = list(color = "#c83771"),
+                   name = "E1 Pumping",
+                   type = "scatter", mode = "lines")
 
 # find the 7/8 observations that plotly ignored (warning message)
 missing_obs <- rcs_sub[is.na(`Precip. Amount (mm)`), ]
@@ -482,16 +521,55 @@ s6 <- subplot(p_wl, p_baro, p_liner, p_rain, shareX = TRUE, nrows = 4, heights =
     legend = list(traceorder = "reversed")
   )
 
+sba <- subplot(p_baro, p_liner, shareX = TRUE, nrows = 2, heights = c(0.5, 0.5))%>%
+  layout(
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Pressure (m H20)"),
+    yaxis2 = list(title = "Pressure (m H20)")
+                  #range = c(9.7, 10.1))
+  )
+
+scw <- subplot(p_cw_e4, p_cw_e3, p_cw_e1, shareX = TRUE, nrows = 3, heights = c(0.33, 0.33, 0.33))%>%
+  layout(
+    title = list(text = "Centre Wellington Elora Well Cluster (E4, E3, E1)", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Avg Flow (m3/hr)"),
+    yaxis2 = list(title = "Avg Flow (m3/hr)"),
+    yaxis3 = list(title = "Avg Flow (m3/hr)")
+  )
+
+s8 <- subplot(p_wl, sba, p_rain, shareX = TRUE, nrows = 3, heights = c(0.7, 0.1, 0.2))%>%
+  layout(
+    title = list(text = "ELR2-R2: Temporary Deployment - Man Corr", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    #yaxis = list(title = "Δ Pressure (m H20)"), # Δ Pressure (m H20)
+    #range = c(-4, 2)),
+    #autorange ="reversed"),
+    yaxis2 = list(title = "Pressure (m H20)"),
+    yaxis4 = list(title = "Precip (mm)"),
+    legend = list(traceorder = "reversed")
+  )
+
 # plot wl, baro, liner, pump, rain together
-s5 <- subplot(s4, p_cw, shareX = FALSE, nrows = 2, heights = c(0.8, 0.2))%>%
+s5 <- subplot(s8, scw, shareX = TRUE, nrows = 2, heights = c(0.7, 0.3))%>%
   layout(
     title = list(text = "ELR2-R2: Temporary Deployment",
                  y = 0.98,
                  font = list(size = 18)),
     xaxis2 = list(title = "Date and time"),
     yaxis4 = list(title = "Head (m asl)"), # Δ Pressure (m H20)
-    yaxis3 = list(title = "Pressure (m H20)"),
-    yaxis = list(title = "Precip (mm/hr)"),
+    yaxis3 = list(title = "Pressure<br>(m H20)"),
+    yaxis = list(title = "Precip<br>(mm/hr)"),
     yaxis5 = list(title = "Avg Flow (m3/hr)"),
     legend = list(traceorder = "reversed")
   )
