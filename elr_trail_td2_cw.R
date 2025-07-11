@@ -165,8 +165,14 @@ cw_e4[, datetime := force_tz(time, tzone = "America/Toronto")]
 cw_e4[, datetime_utc := with_tz(datetime, tzone = "UTC")]
 # clean up dt - remove unnecessary columns
 cw_e4[, c("comments", "datetime") := NULL]
+# remove outliers
+z_score <- scale(cw_e4$drawdown) # standardizing the data
+outliers <- cw_e4$drawdown[abs(z_score) > 3]
+upper_limit <- 45.0000
+lower_limit <- 8.0000
+cw_e4_outliers_dd <- subset(cw_e4, drawdown <= upper_limit & drawdown >= lower_limit)
 # subset data (for memory and performance), keep desired cols and pump data by desired times
-cw_e4_sub <- cw_e4[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
+cw_e4_sub <- cw_e4_outliers_dd[, .(datetime_utc, flow_hrly_avg, drawdown)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
 # remove larger dt
 cw_e4 <- NULL # clean up memory
 
@@ -177,7 +183,7 @@ cw_e3[, flow_hrly_avg := ifelse((as.numeric(time) %% 86400) == 0, flow, flow - l
 cw_e3[, datetime := force_tz(time, tzone = "America/Toronto")]
 cw_e3[, datetime_utc := with_tz(datetime, tzone = "UTC")]
 cw_e3[, c("comments", "datetime") := NULL]
-cw_e3_sub <- cw_e3[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
+cw_e3_sub <- cw_e3[, .(datetime_utc, flow_hrly_avg, drawdown)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
 cw_e3 <- NULL
 
 cw_e1 <- read_xlsx("./data/cw_wells.xlsx", sheet = "Well E1", skip = 2)
@@ -193,7 +199,7 @@ outliers <- cw_e1$flow_hrly_avg[abs(z_score) > 2]
 upper_limit <- 114.0000
 lower_limit <- 0.0000
 cw_e1_outliers <- subset(cw_e1, flow_hrly_avg <= upper_limit & flow_hrly_avg >= lower_limit)
-cw_e1_sub <- cw_e1_outliers[, .(datetime_utc, flow_hrly_avg)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
+cw_e1_sub <- cw_e1_outliers[, .(datetime_utc, flow_hrly_avg, drawdown)][datetime_utc %between% c(cw_pump_start2, cw_pump_end4)]
 cw_e1 <- NULL
 
 ###############################################################################
@@ -442,6 +448,28 @@ p_cw_e1 <- plot_ly(cw_e1_sub,
                    line = list(color = "#c83771"),
                    name = "E1 Pumping",
                    type = "scatter", mode = "lines")
+
+# plot drawdown
+p_cw_e4_dd <- plot_ly(cw_e4_sub,
+                      x = ~datetime_utc,
+                      y = ~drawdown,
+                      line = list(color = "#37bac8"),
+                      name = "E4 Drawdown",
+                      type = "scatter", mode = "lines")
+
+p_cw_e3_dd <- plot_ly(cw_e3_sub,
+                      x = ~datetime_utc,
+                      y = ~drawdown,
+                      line = list(color = "#8e37c8"),
+                      name = "E3 Drawdown",
+                      type = "scatter", mode = "lines")
+
+p_cw_e1_dd <- plot_ly(cw_e1_sub,
+                      x = ~datetime_utc,
+                      y = ~drawdown,
+                      line = list(color = "#c83771"),
+                      name = "E1 Drawdown",
+                      type = "scatter", mode = "lines")
 
 # merging baro and liner plots together on one
 p_baro_liner <- add_trace(p_liner, x = ~datetime, y = ~baro_m, type = "scatter", mode = "lines", name = "Baro") %>%
@@ -696,6 +724,78 @@ s7 <- subplot(p_wl, p_baro, p_liner, p_rain, p_cw, shareX = TRUE, nrows = 5, hei
     yaxis3 = list(range = c(16, 17)),
     yaxis4 = list(title = "Precip (mm)"),
     yaxis5 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
+s8 <- subplot(p_wl, p_cw_e4, p_cw_e3, p_cw_e1, shareX = TRUE, nrows = 4, heights = c(0.55, 0.15, 0.15, 0.15))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45,
+                 showgrid = FALSE),
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                 range = c(366, 377.5)),
+    yaxis3 = list(title = "Avg Flow (m3/hr)"),
+    legend = list(traceorder = "reversed")
+  )
+
+s9 <- subplot(p_wl, p_cw_e4_dd, p_cw_e3_dd, p_cw_e1_dd, shareX = TRUE, nrows = 4, heights = c(0.55, 0.15, 0.15, 0.15))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45,
+                 showgrid = FALSE),
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                 range = c(366, 377.5)),
+    yaxis3 = list(title = "Drawdown (m)"),
+    legend = list(traceorder = "reversed")
+  )
+
+scw_flow <- subplot(p_cw_e4, p_cw_e3, p_cw_e1, shareX = TRUE, nrows = 3, heights = c(0.33, 0.33, 0.33))%>%
+  layout(
+    title = list(text = "Centre Wellington Elora Well Cluster (E4, E3, E1)", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Avg Flow (m3/hr)"),
+    yaxis2 = list(title = "Avg Flow (m3/hr)"),
+    yaxis3 = list(title = "Avg Flow (m3/hr)")
+  )
+
+scw_dd <- subplot(p_cw_e4_dd, p_cw_e3_dd, p_cw_e1_dd, shareX = TRUE, nrows = 3, heights = c(0.33, 0.33, 0.33))%>%
+  layout(
+    title = list(text = "Centre Wellington Elora Well Cluster (E4, E3, E1)", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45),
+    yaxis = list(title = "Drawdown (mbtoc)"),
+    yaxis2 = list(title = "Drawdown (mbtoc)"),
+    yaxis3 = list(title = "Drawdown (mbtoc)")
+  )
+
+s10 <- subplot(p_wl, scw_flow, scw_dd, shareX = TRUE, nrows = 3, heights = c(0.4, 0.3, 0.3))%>%
+  layout(
+    title = list(text = "ELR1-R2: Temporary Deployment", #Air Corr, Manual Corr, No Corr
+                 y = 0.98,
+                 font = list(size = 18)),
+    xaxis = list(title = "Date and time",
+                 nticks = 20,
+                 tickangle = -45,
+                 showgrid = FALSE),
+    yaxis = list(title = "Head (m asl)", # Δ Pressure (m H20)
+                 range = c(366, 377.5)),
+    yaxis3 = list(title = "Avg Flow (m3/hr)"),
+    yaxis6 = list(title = "Drawdown (m)"),
     legend = list(traceorder = "reversed")
   )
 
