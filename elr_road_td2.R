@@ -526,7 +526,7 @@ write.csv(vhp, "out/ELR2-R2_vhp.csv")
 
 vhp <- wl_sub[datetime %in% as.POSIXct(c("2024-04-06 10:10:00", "2024-05-12 12:45:00", 
                                          "2024-06-19 16:40:00", "2024-07-25 14:00:00", 
-                                         "2024-08-09 12:50:00"), tz = "UTC")]
+                                         "2024-08-09 12:50:00", "2024-08-09 4:00:00"), tz = "UTC")]
 vhp <- vhp[, list(datetime, port, head_masl_cf_man, head_masl_cf_air, head_masl)]
 write.csv(vhp, "out/ELR2-R2_vhp_v1.csv")
 
